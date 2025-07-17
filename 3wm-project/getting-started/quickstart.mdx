@@ -1,0 +1,239 @@
+---
+title: "Quick Start Guide"
+description: "Get 3WM AI Document Intelligence running in minutes"
+icon: "rocket"
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+<CardGroup cols={2}>
+  <Card title="Python 3.11+" icon="python">
+    Required for running the application
+  </Card>
+  <Card title="PostgreSQL 15+" icon="database">
+    Main database for document storage
+  </Card>
+  <Card title="Neo4j 5.0+" icon="diagram-project">
+    Graph database for relationships
+  </Card>
+  <Card title="Docker (Optional)" icon="docker">
+    For containerized deployment
+  </Card>
+</CardGroup>
+
+## Installation Steps
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/your-org/3WM-good.git
+cd 3WM-good
+```
+
+### Step 2: Set Up Environment
+
+<Tabs>
+  <Tab title="Using pip">
+    ```bash
+    # Create virtual environment
+    python -m venv .venv
+    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+    
+    # Install dependencies
+    pip install -r requirements.txt
+    ```
+  </Tab>
+  
+  <Tab title="Using uv (Recommended)">
+    ```bash
+    # Activate virtual environment
+    source .venv/bin/activate
+    
+    # Install dependencies
+    uv sync
+    # or
+    uv pip install -r requirements.txt
+    ```
+  </Tab>
+</Tabs>
+
+### Step 3: Configure Environment Variables
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env with your credentials
+nano .env  # or use your preferred editor
+```
+
+<Accordion title="Required Environment Variables" icon="key">
+  ```env
+  # Database
+  DATABASE_URL=postgresql://user:password@localhost:5432/ai_doc_intel
+  
+  # Supabase
+  SUPABASE_URL=https://your-project.supabase.co
+  SUPABASE_KEY=your-anon-key
+  
+  # Neo4j
+  NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
+  NEO4J_USER=neo4j
+  NEO4J_PASSWORD=your-password
+  
+  # OpenAI
+  OPENAI_API_KEY=sk-...
+  
+  # Security
+  SECRET_KEY=your-secret-key-here
+  ```
+</Accordion>
+
+### Step 4: Set Up Databases
+
+<AccordionGroup>
+  <Accordion title="PostgreSQL Setup" icon="database">
+    ```bash
+    # Using Docker
+    docker-compose up -d db
+    
+    # Or manually create database
+    createdb ai_doc_intel
+    ```
+    
+    The application will automatically create tables on startup.
+  </Accordion>
+  
+  <Accordion title="Neo4j Setup" icon="diagram-project">
+    **Option 1: Neo4j Aura (Recommended)**
+    1. Go to [neo4j.com/cloud/aura](https://neo4j.com/cloud/aura/)
+    2. Create a free instance
+    3. Copy connection details to `.env`
+    
+    **Option 2: Self-hosted**
+    ```bash
+    docker run -p 7474:7474 -p 7687:7687 \
+      -e NEO4J_AUTH=neo4j/password \
+      neo4j:5-community
+    ```
+  </Accordion>
+  
+  <Accordion title="Supabase Setup" icon="cloud">
+    1. Create project at [supabase.com](https://supabase.com)
+    2. Enable Vector extension:
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS vector;
+    ```
+    3. Create storage bucket named "invoices"
+    4. Copy URL and anon key to `.env`
+  </Accordion>
+</AccordionGroup>
+
+### Step 5: Run the Application
+
+<Tabs>
+  <Tab title="Development">
+    ```bash
+    # Start with auto-reload
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    ```
+  </Tab>
+  
+  <Tab title="Production">
+    ```bash
+    # Using Docker Compose
+    docker-compose up -d
+    
+    # Or using Gunicorn
+    gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
+    ```
+  </Tab>
+</Tabs>
+
+## Verify Installation
+
+Once the application is running, verify everything is working:
+
+<Steps>
+  <Step title="Check API Health">
+    ```bash
+    curl http://localhost:8000/health
+    ```
+    
+    Expected response:
+    ```json
+    {
+      "status": "healthy",
+      "version": "2.0.0",
+      "timestamp": "2024-01-15T10:30:00Z"
+    }
+    ```
+  </Step>
+  
+  <Step title="Access API Documentation">
+    Open your browser and navigate to:
+    - Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+    - ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+  </Step>
+  
+  <Step title="Upload Test Document">
+    ```bash
+    curl -X POST http://localhost:8000/upload/ \
+      -F "file=@test_invoice.pdf"
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Authentication" icon="lock" href="/3wm-project/getting-started/authentication">
+    Set up user authentication and JWT tokens
+  </Card>
+  
+  <Card title="Configuration Guide" icon="gear" href="/3wm-project/getting-started/configuration">
+    Deep dive into configuration options
+  </Card>
+  
+  <Card title="Upload Your First Document" icon="upload" href="/3wm-project/tutorials/first-upload">
+    Step-by-step guide to document processing
+  </Card>
+  
+  <Card title="Production Deployment" icon="server" href="/3wm-project/deployment/production">
+    Deploy to production environments
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="Common Issues" icon="triangle-exclamation">
+  **Port already in use**
+  ```bash
+  # Find process using port 8000
+  lsof -i :8000
+  # Kill the process or use a different port
+  uvicorn app.main:app --port 8001
+  ```
+  
+  **Database connection failed**
+  - Verify PostgreSQL is running
+  - Check DATABASE_URL format
+  - Ensure database exists
+  
+  **Neo4j connection error**
+  - Verify Neo4j instance is running
+  - Check URI format (neo4j+s:// for Aura)
+  - Confirm credentials are correct
+  
+  **OCR not working**
+  - Install system dependencies:
+  ```bash
+  # Ubuntu/Debian
+  sudo apt-get install tesseract-ocr
+  
+  # macOS
+  brew install tesseract
+  ```
+</Accordion> 

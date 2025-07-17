@@ -1,0 +1,72 @@
+stateDiagram-v2
+    %% Document States
+    [*] --> Uploaded: User uploads document
+    Uploaded --> Processing: Start OCR
+    Processing --> FieldExtraction: OCR Complete
+    FieldExtraction --> Embedding: Fields Extracted
+    Embedding --> SimilarityCheck: Vector Generated
+    SimilarityCheck --> Processed: No Duplicates
+    SimilarityCheck --> Duplicate: Duplicate Found
+    Processing --> Error: OCR Failed
+    FieldExtraction --> Error: Extraction Failed
+    Embedding --> Error: Embedding Failed
+    Processed --> [*]
+    Duplicate --> [*]
+    Error --> [*]
+
+    %% Invoice-Specific States
+    state Invoice {
+        [*] --> ExtractingVendor
+        ExtractingVendor --> ExtractingLineItems
+        ExtractingLineItems --> CalculatingTotals
+        CalculatingTotals --> ValidatingVAT
+        ValidatingVAT --> PredictingJournal
+        PredictingJournal --> CreatingGraphNodes
+        CreatingGraphNodes --> FraudDetection
+        FraudDetection --> Complete
+    }
+
+    %% Agent States
+    state AIAgent {
+        [*] --> ParseQuery
+        ParseQuery --> DetermineIntent
+        DetermineIntent --> SelectTools
+        SelectTools --> ExecuteTools
+        ExecuteTools --> FormatResponse
+        FormatResponse --> StreamResponse
+        StreamResponse --> [*]
+    }
+
+    %% Session States
+    state UserSession {
+        [*] --> Anonymous
+        Anonymous --> Authenticating: Login/Register
+        Authenticating --> Authenticated: Valid Credentials
+        Authenticating --> Anonymous: Invalid
+        Authenticated --> Active: Create Session
+        Active --> Expired: Timeout
+        Expired --> Authenticating: Refresh
+        Active --> [*]: Logout
+    }
+
+    %% Batch Processing States
+    state BatchProcessor {
+        [*] --> Idle
+        Idle --> LoadingDocuments: Start Batch
+        LoadingDocuments --> ProcessingQueue: Documents Found
+        LoadingDocuments --> Idle: No Documents
+        ProcessingQueue --> ProcessingDocument: Next Document
+        ProcessingDocument --> ProcessingQueue: More Documents
+        ProcessingDocument --> Complete: Last Document
+        Complete --> Idle
+    }
+
+    %% Neo4j Transaction States
+    state GraphTransaction {
+        [*] --> CreatingVendor
+        CreatingVendor --> CreatingInvoice
+        CreatingInvoice --> LinkingRelationships
+        LinkingRelationships --> CalculatingRisk
+        CalculatingRisk --> StoringSignals
+        StoringSignals --> [*]
+    } 

@@ -1,0 +1,65 @@
+flowchart TB
+    %% Mid-Level: Component Architecture
+    subgraph "Frontend Layer"
+        UI[Web UI<br/>React/Next.js]
+        CLI[CLI Tools<br/>Python Scripts]
+    end
+
+    subgraph "API Layer"
+        FAPI[FastAPI Server]
+        AUTH[Auth Service<br/>JWT]
+        RATE[Rate Limiter<br/>SlowAPI]
+        CORS[CORS Middleware]
+    end
+
+    subgraph "Business Logic"
+        AGENT[AI Agent<br/>LangGraph]
+        OCR_SVC[OCR Service<br/>DocTR/TrOCR]
+        EXTRACT[Field Extractor<br/>Rule-based]
+        PREDICT[Journal Predictor<br/>ML Model]
+        FRAUD[Fraud Detector<br/>Graph Analysis]
+    end
+
+    subgraph "Data Layer"
+        PG[(PostgreSQL<br/>Main DB)]
+        REDIS[(Redis<br/>Cache/Sessions)]
+        NEO[(Neo4j<br/>Graph DB)]
+        SUPA[(Supabase<br/>Storage)]
+    end
+
+    subgraph "External Services"
+        OPENAI[OpenAI API]
+        ANTHRO[Anthropic API]
+        SEARCH[DuckDuckGo API]
+    end
+
+    %% Connections
+    UI --> FAPI
+    CLI --> FAPI
+    FAPI --> AUTH
+    FAPI --> RATE
+    FAPI --> CORS
+    
+    AUTH --> REDIS
+    FAPI --> AGENT
+    FAPI --> OCR_SVC
+    FAPI --> EXTRACT
+    FAPI --> PREDICT
+    FAPI --> FRAUD
+    
+    AGENT --> OPENAI
+    AGENT --> ANTHRO
+    AGENT --> SEARCH
+    
+    EXTRACT --> PG
+    PREDICT --> PG
+    FRAUD --> NEO
+    OCR_SVC --> SUPA
+    
+    AGENT --> PG
+    AGENT --> NEO
+
+    style FAPI fill:#4fc3f7
+    style AGENT fill:#81c784
+    style PG fill:#ffb74d
+    style NEO fill:#ff8a65 

@@ -1,0 +1,417 @@
+---
+title: "Troubleshooting Guide"
+description: "Oplossingen voor veelvoorkomende problemen met het 3WM systeem"
+icon: "wrench"
+---
+
+## Veelvoorkomende Problemen en Oplossingen
+
+### 1. Applicatie Startup Problemen
+
+#### Probleem: Applicatie start niet op
+
+<Warning>
+**Symptomen:**
+- Foutmeldingen tijdens opstarten
+- Applicatie crasht direct
+- Port binding errors
+</Warning>
+
+**Veelvoorkomende Oorzaken en Oplossingen:**
+
+<Tabs>
+  <Tab title="Database Connectie">
+    ```bash
+    # Check database connectivity
+    docker-compose exec db psql -U postgres -d 3wm_db -c "SELECT 1;"
+    
+    # Als connectie faalt, herstart database
+    docker-compose restart db
+    
+    # Check database logs
+    docker-compose logs db
+    ```
+  </Tab>
+  
+  <Tab title="Port in Gebruik">
+    ```bash
+    # Vind proces dat port 8000 gebruikt
+    lsof -i :8000
+    
+    # Kill proces indien nodig
+    kill -9 <PID>
+    
+    # Of gebruik andere port
+    uvicorn app.main:app --port 8001
+    ```
+  </Tab>
+  
+  <Tab title="Ontbrekende Environment Variables">
+    ```bash
+    # Kopieer template en vul waarden in
+    cp .env.example .env
+    nano .env
+    
+    # Vereiste variabelen:
+    # DATABASE_URL, SUPABASE_URL, SUPABASE_KEY
+    # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
+    # OPENAI_API_KEY, SECRET_KEY
+    ```
+  </Tab>
+  
+  <Tab title="Python Dependencies">
+    ```bash
+    # Update pip en herinstalleer
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    
+    # Of gebruik uv voor snellere installatie
+    uv pip install -r requirements.txt
+    ```
+  </Tab>
+</Tabs>
+
+### 2. Database Problemen
+
+#### Database Connectie Errors
+
+<Card title="Symptomen" icon="exclamation-triangle">
+  - "connection refused" errors
+  - Timeout errors
+  - Authentication failures
+</Card>
+
+<AccordionGroup>
+  <Accordion title="PostgreSQL Problemen">
+    ```bash
+    # Check PostgreSQL status
+    docker-compose ps db
+    
+    # Bekijk database logs
+    docker-compose logs db
+    
+    # Verbind direct voor debugging
+    docker-compose exec db psql -U postgres -d 3wm_db
+    
+    # Reset database indien corrupt
+    docker-compose down -v
+    docker-compose up -d db
+    ```
+  </Accordion>
+  
+  <Accordion title="Supabase Problemen">
+    ```bash
+    # Test Supabase connectie
+    curl -H "apikey: YOUR_SUPABASE_KEY" \
+         https://your-project.supabase.co/rest/v1/
+    
+    # Check Supabase dashboard voor status
+    # Bezoek: https://your-project.supabase.co
+    
+    # Verifieer environment variabelen
+    echo $SUPABASE_URL
+    echo $SUPABASE_KEY
+    ```
+  </Accordion>
+  
+  <Accordion title="Neo4j Problemen">
+    ```bash
+    # Test Neo4j connectie
+    cypher-shell -a $NEO4J_URI -u $NEO4J_USER -p $NEO4J_PASSWORD
+    
+    # Check Neo4j Aura dashboard
+    # Bezoek: https://console.neo4j.io
+    
+    # Verifieer firewall rules
+    # Neo4j vereist port 7687 (bolt protocol)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 3. OCR Processing Problemen
+
+#### Probleem: OCR geeft lege of incorrecte resultaten
+
+<Info>
+OCR kwaliteit hangt sterk af van document kwaliteit. Zorg voor hoge resolutie scans.
+</Info>
+
+<Steps>
+  <Step title="Check Document Kwaliteit">
+    - Minimaal 300 DPI resolutie
+    - Goede belichting zonder schaduwen
+    - Rechte scan zonder scheefstand
+    - Schone achtergrond
+  </Step>
+  
+  <Step title="Verifieer OCR Engine">
+    ```python
+    # Test OCR direct
+    from app.services.ocr import OCRProcessor
+    
+    processor = OCRProcessor()
+    result = processor.process_file("test.pdf")
+    print(result)
+    ```
+  </Step>
+  
+  <Step title="Debug OCR Output">
+    ```bash
+    # Enable debug logging
+    export LOG_LEVEL=DEBUG
+    
+    # Check OCR logs
+    tail -f logs/ocr.log
+    ```
+  </Step>
+</Steps>
+
+### 4. AI Agent Problemen
+
+#### Probleem: AI Agent geeft geen of verkeerde antwoorden
+
+<Tabs>
+  <Tab title="OpenAI API Errors">
+    ```bash
+    # Test OpenAI API
+    curl https://api.openai.com/v1/models \
+      -H "Authorization: Bearer $OPENAI_API_KEY"
+    
+    # Common issues:
+    # - Invalid API key
+    # - Rate limits exceeded
+    # - Insufficient credits
+    ```
+  </Tab>
+  
+  <Tab title="Query Processing">
+    ```python
+    # Test agent directly
+    from app.services.agent import QueryAgent
+    
+    agent = QueryAgent()
+    response = agent.query("Test query")
+    print(response)
+    ```
+  </Tab>
+  
+  <Tab title="Context Issues">
+    - Verifieer database heeft data
+    - Check vector embeddings zijn gegenereerd
+    - Controleer similarity search werkt
+  </Tab>
+</Tabs>
+
+### 5. Performance Problemen
+
+#### Probleem: Trage document verwerking
+
+<CardGroup cols={2}>
+  <Card title="CPU/Memory Check" icon="microchip">
+    ```bash
+    # Monitor resources
+    htop
+    
+    # Check Docker stats
+    docker stats
+    
+    # Increase resources
+    docker update --cpus="4" --memory="8g" container_name
+    ```
+  </Card>
+  
+  <Card title="Database Optimization" icon="database">
+    ```sql
+    -- Analyze tables
+    ANALYZE documents;
+    ANALYZE users;
+    
+    -- Check slow queries
+    SELECT query, calls, mean_exec_time
+    FROM pg_stat_statements
+    ORDER BY mean_exec_time DESC
+    LIMIT 10;
+    ```
+  </Card>
+</CardGroup>
+
+### 6. Authentication & Security
+
+#### Probleem: Login werkt niet
+
+<Warning>
+Zorg ervoor dat JWT_SECRET_KEY is ingesteld en consistent is tussen restarts.
+</Warning>
+
+```bash
+# Generate nieuwe secret key
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Update .env
+JWT_SECRET_KEY=your-new-secret-key
+
+# Clear Redis sessions
+docker-compose exec redis redis-cli FLUSHALL
+```
+
+### 7. Document Upload Problemen
+
+#### Probleem: Bestanden kunnen niet geüpload worden
+
+<AccordionGroup>
+  <Accordion title="Bestandsgrootte Limiet">
+    ```python
+    # Verhoog upload limiet in app/config.py
+    MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
+    
+    # Update Nginx config
+    client_max_body_size 100M;
+    ```
+  </Accordion>
+  
+  <Accordion title="Permissie Errors">
+    ```bash
+    # Fix file permissions
+    chmod -R 755 uploads/
+    chown -R www-data:www-data uploads/
+    ```
+  </Accordion>
+  
+  <Accordion title="Supabase Storage">
+    ```bash
+    # Check Supabase storage quota
+    # Verifieer bucket policies
+    # Test met Supabase JS client
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 8. Docker Problemen
+
+#### Container Management
+
+```bash
+# View all containers
+docker-compose ps -a
+
+# Restart specific service
+docker-compose restart app
+
+# Rebuild containers
+docker-compose build --no-cache
+
+# Clean up Docker system
+docker system prune -a --volumes
+
+# View container logs
+docker-compose logs -f app --tail=100
+```
+
+### 9. Monitoring & Logging
+
+#### Log Locaties
+
+<Tabs>
+  <Tab title="Application Logs">
+    ```bash
+    # FastAPI logs
+    tail -f logs/app.log
+    
+    # Structured JSON logs
+    cat logs/app.json | jq '.'
+    ```
+  </Tab>
+  
+  <Tab title="System Logs">
+    ```bash
+    # Docker logs
+    docker-compose logs -f
+    
+    # Nginx access logs
+    tail -f /var/log/nginx/access.log
+    
+    # PostgreSQL logs
+    docker-compose logs db
+    ```
+  </Tab>
+</Tabs>
+
+### 10. Emergency Procedures
+
+#### Systeem Volledig Resetten
+
+<Warning>
+Dit verwijdert ALLE data! Maak eerst een backup!
+</Warning>
+
+```bash
+# 1. Stop alle services
+docker-compose down
+
+# 2. Backup databases
+pg_dump -h localhost -U postgres 3wm_db > backup_$(date +%Y%m%d).sql
+
+# 3. Remove all data
+docker-compose down -v
+
+# 4. Rebuild from scratch
+docker-compose build --no-cache
+docker-compose up -d
+
+# 5. Restore data if needed
+psql -h localhost -U postgres 3wm_db < backup_20240115.sql
+```
+
+## Debug Checklist
+
+<Steps>
+  <Step title="Environment Check">
+    ```bash
+    # Verifieer alle environment variables
+    env | grep -E "(DATABASE|SUPABASE|NEO4J|OPENAI)"
+    ```
+  </Step>
+  
+  <Step title="Service Health">
+    ```bash
+    # Check alle services draaien
+    docker-compose ps
+    curl http://localhost:8000/health
+    ```
+  </Step>
+  
+  <Step title="Database Connectivity">
+    ```bash
+    # Test alle database connecties
+    python scripts/test_connections.py
+    ```
+  </Step>
+  
+  <Step title="API Keys">
+    ```bash
+    # Verifieer externe services
+    python scripts/verify_api_keys.py
+    ```
+  </Step>
+</Steps>
+
+## Support Contact
+
+<Card title="Hulp Nodig?" icon="life-ring">
+  Als deze troubleshooting guide niet helpt:
+  
+  - **Email**: support@3wm.ai
+  - **Slack**: #3wm-support
+  - **GitHub Issues**: github.com/3wm/issues
+  - **Emergency**: +31 20 123 4567
+</Card>
+
+## Preventieve Maatregelen
+
+<Info>
+Voorkom problemen door:
+- Regelmatige backups
+- Monitoring alerts instellen
+- Logs dagelijks controleren
+- Updates planmatig uitvoeren
+</Info> 

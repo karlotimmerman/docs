@@ -48,6 +48,47 @@
         ]
       },
       {
+        "tab": "3WM Project",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "3wm-project/overview"
+            ]
+          },
+          {
+            "group": "Getting Started",
+            "pages": [
+              "3wm-project/getting-started/quickstart"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "3wm-project/features/ocr",
+              "3wm-project/features/ai-extraction",
+              "3wm-project/features/neo4j"
+            ]
+          },
+          {
+            "group": "Sterke Punten",
+            "pages": [
+              "3wm-project/sterke-punten/overzicht",
+              "3wm-project/sterke-punten/functionaliteit",
+              "3wm-project/sterke-punten/infrastructuur",
+              "3wm-project/sterke-punten/schaalbaarheid",
+              "3wm-project/sterke-punten/ai-integratie"
+            ]
+          },
+          {
+            "group": "API",
+            "pages": [
+              "3wm-project/api/overview"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "API reference",
         "groups": [
           {

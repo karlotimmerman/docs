@@ -1,0 +1,355 @@
+---
+title: "AI Agents & Tools"
+description: "Intelligente agents voor document analyse, leverancier onderzoek en natuurlijke taal interactie"
+icon: "robot"
+---
+
+## Overzicht
+
+Het 3WM platform bevat geavanceerde AI agents die gebruikers in staat stellen om natuurlijke taal queries uit te voeren op hun document database. Deze agents zijn gebouwd met LangChain en LangGraph voor complexe reasoning en tool orchestratie.
+
+<Card title="Agent Architectuur" icon="sitemap">
+  Het systeem gebruikt een multi-agent architectuur met:
+  - **Supervisor Agent**: Coördineert tussen verschillende sub-agents
+  - **Document Agent**: Specialiseert in document queries en analyse
+  - **Vendor Agent**: Focust op leverancier analyse en relaties
+  - **Web Agent**: Voert externe research uit via web search
+</Card>
+
+## Beschikbare Tools
+
+### Document Tools
+
+<AccordionGroup>
+  <Accordion title="document-count" icon="calculator">
+    **Functie**: Tel documenten op basis van filters
+    
+    ```python
+    @tool("document-count", args_schema=DocumentCountInput)
+    def document_count(
+        status: Optional[str] = None,
+        vendor_name: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None
+    ) -> Dict[str, Any]:
+    ```
+    
+    **Parameters**:
+    - `status`: Filter op document status (pending/processed/failed)
+    - `vendor_name`: Filter op leverancier naam
+    - `date_from`: Start datum filter (YYYY-MM-DD)
+    - `date_to`: Eind datum filter (YYYY-MM-DD)
+    
+    **Voorbeeld Query**: "Hoeveel facturen hebben we van Leverancier BV?"
+  </Accordion>
+  
+  <Accordion title="document-list" icon="list">
+    **Functie**: Lijst documenten met geavanceerde filters en semantic search
+    
+    ```python
+    @tool("document-list", args_schema=DocumentListInput)
+    def document_list(
+        status: Optional[str] = None,
+        vendor_name: Optional[str] = None,
+        limit: int = 10,
+        sort_by: str = "created_at",
+        description: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+    ```
+    
+    **Unieke Feature**: Semantic search op document beschrijvingen
+    
+    **Voorbeeld Query**: "Toon alle facturen voor kantoorartikelen van dit jaar"
+  </Accordion>
+  
+  <Accordion title="predict-journal-entry" icon="brain">
+    **Functie**: Voorspel journaalpost voor een document
+    
+    ```python
+    @tool("predict-journal-entry", args_schema=JournalPredictionInput)
+    def predict_journal_entry(ins_filename: str) -> Dict[str, Any]:
+    ```
+    
+    **AI Voorspelling**:
+    - Analyseert vergelijkbare historische facturen
+    - Voorspelt grootboekrekeningen
+    - Genereert AccountView-compatibele output
+    - Berekent confidence score
+    
+    **Voorbeeld Query**: "Maak een journaalpost voor INS_20240115_143052_factuur.pdf"
+  </Accordion>
+</AccordionGroup>
+
+### Leverancier Tools
+
+<AccordionGroup>
+  <Accordion title="vendor-analysis" icon="chart-line">
+    **Functie**: Analyseer een leverancier inclusief transactie historie en fraude risico
+    
+    ```python
+    @tool("vendor-analysis", args_schema=VendorAnalysisInput)
+    def vendor_analysis(
+        vendor_name: str,
+        include_fraud_check: bool = True
+    ) -> Dict[str, Any]:
+    ```
+    
+    **Analyse Componenten**:
+    - Vendor insights uit Neo4j
+    - Vergelijkbare leveranciers
+    - Fraude risico score
+    - Uitgaven patronen
+    
+    **Voorbeeld Query**: "Analyseer Leverancier BV en check voor fraude signalen"
+  </Accordion>
+  
+  <Accordion title="vendor-network" icon="network-wired">
+    **Functie**: Krijg het netwerk van accounts en relaties voor een leverancier
+    
+    ```python
+    @tool("vendor-network")
+    def vendor_network(vendor_name: str) -> Dict[str, Any]:
+    ```
+    
+    **Neo4j Query**:
+    ```cypher
+    MATCH (v:Vendor {name: $vendor_name})-[:SUPPLIED]->(i:Invoice)-[:POSTED_TO]->(a:Account)
+    WITH a, count(i) as invoice_count, sum(i.total) as total_amount
+    RETURN a.code as account_code, a.name as account_name, 
+           invoice_count, total_amount
+    ORDER BY total_amount DESC
+    ```
+    
+    **Voorbeeld Query**: "Welke grootboekrekeningen gebruikt Leverancier BV?"
+  </Accordion>
+</AccordionGroup>
+
+### Aggregatie Tools
+
+<AccordionGroup>
+  <Accordion title="invoice-statistics" icon="chart-bar">
+    **Functie**: Krijg geaggregeerde statistieken over facturen
+    
+    ```python
+    @tool("invoice-statistics")
+    def invoice_statistics(
+        group_by: str = "vendor",
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None
+    ) -> Dict[str, Any]:
+    ```
+    
+    **Groepering Opties**:
+    - `vendor`: Per leverancier
+    - `category`: Per categorie
+    - `month`: Per maand
+    
+    **Voorbeeld Query**: "Toon uitgaven per leverancier voor Q1 2024"
+  </Accordion>
+</AccordionGroup>
+
+### Web Search Tools (Tavily Integratie)
+
+<Info>
+Web search tools zijn alleen beschikbaar als de Tavily API key is geconfigureerd. Deze tools stellen de AI agent in staat om actuele informatie op te halen van het internet.
+</Info>
+
+<AccordionGroup>
+  <Accordion title="web-search" icon="globe">
+    **Functie**: Zoek actuele informatie op het web
+    
+    **Use Cases**:
+    - Leverancier verificatie
+    - KVK/BTW nummer controle
+    - Nieuws over leveranciers
+    - Marktprijzen vergelijking
+    
+    **Voorbeeld Query**: "Zoek informatie over Leverancier BV op het internet"
+  </Accordion>
+  
+  <Accordion title="supplier-enrichment" icon="user-plus">
+    **Functie**: Verrijk leverancier data met externe bronnen
+    
+    **Enrichment Data**:
+    - Bedrijfsinformatie
+    - Financiële gezondheid
+    - Nieuws en updates
+    - Social media presence
+    
+    **Voorbeeld Query**: "Verrijk de data van al onze leveranciers met actuele informatie"
+  </Accordion>
+</AccordionGroup>
+
+## LangGraph Workflow
+
+Het systeem gebruikt LangGraph voor complexe multi-step workflows:
+
+```python
+def create_agent_graph():
+    """Maak de LangGraph workflow voor document processing."""
+    
+    # Initialize LLM
+    llm = ChatOpenAI(model="gpt-4-turbo", temperature=0)
+    
+    # Create workflow
+    workflow = StateGraph(AgentState)
+    
+    # Add nodes
+    workflow.add_node("supervisor", supervisor_node)
+    workflow.add_node("document_agent", document_agent_node)
+    workflow.add_node("vendor_agent", vendor_agent_node)
+    workflow.add_node("web_agent", web_agent_node)
+    
+    # Define edges
+    workflow.add_edge("supervisor", "document_agent")
+    workflow.add_edge("supervisor", "vendor_agent")
+    workflow.add_edge("supervisor", "web_agent")
+    
+    return workflow.compile()
+```
+
+## AI Model Configuratie
+
+<Tabs>
+  <Tab title="Primaire Models">
+    **OpenAI GPT-4 Turbo**
+    - Hoofdmodel voor reasoning
+    - Temperature: 0 voor consistentie
+    - Context window: 128k tokens
+    
+    ```python
+    llm = ChatOpenAI(
+        model="gpt-4-turbo",
+        temperature=0,
+        max_tokens=4096
+    )
+    ```
+  </Tab>
+  
+  <Tab title="Geplande Integraties">
+    **GPT-4 Vision**
+    - Voor directe image analyse
+    - Tabel extractie
+    - Handschrift herkenning
+    
+    **LlamaCloud**
+    - Enterprise document parsing
+    - Bulk processing
+    - On-premise optie
+    
+    **Claude 3 (Anthropic)**
+    - Alternatief voor GPT-4
+    - Betere context handling
+    - Europese data residency
+  </Tab>
+  
+  <Tab title="Embeddings">
+    **OpenAI text-embedding-3-small**
+    - Voor document vectorisatie
+    - 1536 dimensies
+    - Optimaal voor semantic search
+    
+    ```python
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-3-small"
+    )
+    ```
+  </Tab>
+</Tabs>
+
+## Natuurlijke Taal Queries
+
+Het systeem begrijpt complexe Nederlandse queries:
+
+<CodeGroup>
+```text Financiële Queries
+"Hoeveel hebben we uitgegeven aan kantoorartikelen dit jaar?"
+"Welke leveranciers hebben we meer dan €10.000 betaald?"
+"Toon alle onbetaalde facturen ouder dan 30 dagen"
+"Wat is ons grootste uitgavenposten deze maand?"
+```
+
+```text Analyse Queries
+"Analyseer de betalingspatronen van Leverancier BV"
+"Zijn er verdachte transacties in Q4?"
+"Vergelijk uitgaven tussen dit jaar en vorig jaar"
+"Welke leveranciers hebben prijsverhogingen doorgevoerd?"
+```
+
+```text Operationele Queries
+"Maak journaalposten voor alle facturen van vandaag"
+"Controleer of alle facturen correct zijn verwerkt"
+"Zoek facturen zonder BTW-nummer"
+"Lijst alle creditnota's van deze maand"
+```
+</CodeGroup>
+
+## Tool Orchestratie
+
+De supervisor agent bepaalt intelligent welke tools gebruikt moeten worden:
+
+```python
+def supervisor_node(state: AgentState) -> Dict:
+    """Supervisor bepaalt welke agent de query moet afhandelen."""
+    
+    # Analyseer de query
+    query_analysis = analyze_query(state["query"])
+    
+    # Route naar juiste agent
+    if query_analysis["type"] == "document_search":
+        return {"next": "document_agent"}
+    elif query_analysis["type"] == "vendor_analysis":
+        return {"next": "vendor_agent"}
+    elif query_analysis["needs_web_search"]:
+        return {"next": "web_agent"}
+    else:
+        return {"next": "document_agent"}  # Default
+```
+
+## Performance & Optimalisatie
+
+<Card title="Response Times" icon="gauge">
+  - **Simple queries**: < 1 seconde
+  - **Complex analysis**: 2-5 seconden
+  - **Web search**: 3-10 seconden
+  - **Bulk operations**: Async processing
+</Card>
+
+### Caching Strategie
+
+```python
+# Redis caching voor frequente queries
+@cache(expire=3600)  # 1 uur cache
+def get_vendor_insights(vendor_name: str):
+    """Cache vendor insights voor performance."""
+    return neo4j_client.get_vendor_insights(vendor_name)
+```
+
+## Security & Privacy
+
+<Warning>
+De AI agents hebben toegang tot gevoelige bedrijfsdata. Het systeem implementeert verschillende beveiligingsmaatregelen:
+</Warning>
+
+- **Query Sanitization**: Voorkomt injection attacks
+- **Rate Limiting**: Maximaal 100 queries per uur per gebruiker
+- **Audit Logging**: Alle queries worden gelogd
+- **Data Isolation**: Multi-tenant scheiding
+- **Token Limits**: Voorkomt excessive API kosten
+
+## Toekomstige Ontwikkelingen
+
+<Steps>
+  <Step title="Multi-Modal Agents">
+    Integratie van vision models voor directe document analyse zonder OCR
+  </Step>
+  <Step title="Proactieve Suggesties">
+    AI agents die automatisch anomalieën detecteren en waarschuwingen sturen
+  </Step>
+  <Step title="Voice Interface">
+    Spraakgestuurde interactie met de agents
+  </Step>
+  <Step title="Custom Tool Development">
+    Framework voor klant-specifieke tools en integraties
+  </Step>
+</Steps> 

@@ -1,0 +1,258 @@
+---
+title: "API Overview"
+description: "RESTful API for document processing and intelligence"
+icon: "code"
+---
+
+## Base URL
+
+```
+http://localhost:8000
+```
+
+For production deployments, replace with your domain:
+```
+https://api.your-domain.com
+```
+
+## API Features
+
+<CardGroup cols={2}>
+  <Card title="RESTful Design" icon="arrows-rotate">
+    Clean, intuitive endpoints following REST principles
+  </Card>
+  
+  <Card title="JWT Authentication" icon="shield-halved">
+    Secure token-based authentication with refresh tokens
+  </Card>
+  
+  <Card title="Rate Limiting" icon="gauge">
+    Intelligent rate limiting to prevent abuse
+  </Card>
+  
+  <Card title="OpenAPI Docs" icon="book">
+    Auto-generated interactive documentation
+  </Card>
+</CardGroup>
+
+## Authentication
+
+The API supports JWT bearer token authentication:
+
+```bash
+Authorization: Bearer <your-jwt-token>
+```
+
+<Note>
+  Some endpoints work without authentication but with limited functionality. Authenticated requests have higher rate limits and full feature access.
+</Note>
+
+## Core Endpoints
+
+### Document Processing
+
+<Card title="Upload Document" icon="upload" href="/3wm-project/api/endpoints/upload">
+  `POST /upload/` - Process documents with OCR and AI extraction
+</Card>
+
+### AI Agent
+
+<Card title="Natural Language Query" icon="message-dots" href="/3wm-project/api/endpoints/agent">
+  `POST /api/v1/agent/query` - Query documents using natural language
+</Card>
+
+### Graph Operations
+
+<Card title="Vendor Relationships" icon="diagram-project" href="/3wm-project/api/endpoints/graph">
+  `GET /api/v1/graph/vendors/{id}/relationships` - Analyze vendor connections
+</Card>
+
+### Authentication
+
+<Card title="User Management" icon="users" href="/3wm-project/api/endpoints/auth">
+  Register, login, and manage user sessions
+</Card>
+
+## Response Format
+
+All API responses follow a consistent format:
+
+### Success Response
+
+```json
+{
+  "status": "success",
+  "data": {
+    // Response data here
+  },
+  "meta": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "request_id": "req_123abc",
+    "processing_time": 1.234
+  }
+}
+```
+
+### Error Response
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid file type",
+    "details": {
+      "field": "file",
+      "reason": "File type 'text/plain' is not supported"
+    }
+  },
+  "meta": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "request_id": "req_123abc"
+  }
+}
+```
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| `200` | Success - Request completed successfully |
+| `201` | Created - Resource created successfully |
+| `400` | Bad Request - Invalid input data |
+| `401` | Unauthorized - Missing or invalid authentication |
+| `403` | Forbidden - Insufficient permissions |
+| `404` | Not Found - Resource doesn't exist |
+| `413` | Payload Too Large - File size exceeds limit |
+| `429` | Too Many Requests - Rate limit exceeded |
+| `500` | Internal Server Error - Server-side error |
+
+## Rate Limiting
+
+<AccordionGroup>
+  <Accordion title="Default Limits" icon="gauge">
+    - **Anonymous**: 100 requests/minute
+    - **Authenticated**: 500 requests/minute
+    - **File Upload**: 10 uploads/minute
+  </Accordion>
+  
+  <Accordion title="Rate Limit Headers" icon="list">
+    ```
+    X-RateLimit-Limit: 500
+    X-RateLimit-Remaining: 499
+    X-RateLimit-Reset: 1673784000
+    ```
+  </Accordion>
+  
+  <Accordion title="Handling 429 Errors" icon="clock">
+    When rate limited, implement exponential backoff:
+    ```python
+    import time
+    
+    def retry_with_backoff(func, max_retries=3):
+        for i in range(max_retries):
+            try:
+                return func()
+            except RateLimitError:
+                wait_time = 2 ** i
+                time.sleep(wait_time)
+        raise Exception("Max retries exceeded")
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Request Headers
+
+### Required Headers
+
+| Header | Description | Example |
+|--------|-------------|---------|
+| `Content-Type` | Request content type | `application/json` |
+| `Accept` | Accepted response type | `application/json` |
+
+### Optional Headers
+
+| Header | Description | Example |
+|--------|-------------|---------|
+| `Authorization` | JWT bearer token | `Bearer eyJ...` |
+| `X-Request-ID` | Client request ID | `client-req-123` |
+| `X-Client-Version` | Client version | `1.0.0` |
+
+## Pagination
+
+List endpoints support pagination:
+
+```bash
+GET /api/v1/documents?page=1&per_page=20
+```
+
+Response includes pagination metadata:
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total": 150,
+    "pages": 8,
+    "has_next": true,
+    "has_prev": false
+  }
+}
+```
+
+## API Versioning
+
+The API uses URL versioning:
+
+- Current version: `v1`
+- Base path: `/api/v1/`
+
+<Warning>
+  Always include the version in your API calls. Unversioned endpoints may be deprecated without notice.
+</Warning>
+
+## Interactive Documentation
+
+Explore the API interactively:
+
+<CardGroup cols={2}>
+  <Card title="Swagger UI" icon="swagger" href="http://localhost:8000/docs">
+    Interactive API explorer with try-it-out functionality
+  </Card>
+  
+  <Card title="ReDoc" icon="book-open" href="http://localhost:8000/redoc">
+    Clean, readable API documentation
+  </Card>
+</CardGroup>
+
+## SDK Support
+
+<Note>
+  Official SDKs are coming soon for:
+  - Python
+  - JavaScript/TypeScript
+  - Go
+  - Java
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication Guide" icon="lock" href="/3wm-project/api/authentication">
+    Learn about JWT tokens and user management
+  </Card>
+  
+  <Card title="Upload Endpoint" icon="upload" href="/3wm-project/api/endpoints/upload">
+    Deep dive into document processing
+  </Card>
+  
+  <Card title="Error Handling" icon="triangle-exclamation" href="/3wm-project/api/error-handling">
+    Handle errors gracefully
+  </Card>
+  
+  <Card title="Best Practices" icon="lightbulb" href="/3wm-project/api/best-practices">
+    API integration best practices
+  </Card>
+</CardGroup> 

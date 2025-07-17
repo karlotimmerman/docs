@@ -1,0 +1,376 @@
+---
+title: "Schaalbare Architectuur"
+description: "Microservices-ready ontwerp met onbeperkte groeimogelijkheden"
+icon: "expand"
+---
+
+## Ontworpen voor Groei
+
+Het 3WM AI Document Intelligence systeem is gebouwd met schaalbaarheid als kernprincipe. Van startup tot enterprise, de architectuur groeit naadloos mee met uw organisatie zonder compromissen op performance of betrouwbaarheid.
+
+## Microservices Architectuur
+
+### Service Decomposition
+
+<Card title="Modulaire Services" icon="cubes">
+  Het systeem is opgedeeld in onafhankelijke services die individueel kunnen schalen:
+  
+  ```mermaid
+  graph TB
+    GW[API Gateway] --> AUTH[Auth Service]
+    GW --> DOC[Document Service]
+    GW --> OCR[OCR Service]
+    GW --> AI[AI Service]
+    GW --> GRAPH[Graph Service]
+    
+    DOC --> QUEUE[Message Queue]
+    QUEUE --> WORKER[Worker Pool]
+    WORKER --> OCR
+    WORKER --> AI
+    WORKER --> GRAPH
+  ```
+</Card>
+
+### Service Karakteristieken
+
+<AccordionGroup>
+  <Accordion title="API Gateway" icon="door-open">
+    - **Functie**: Request routing en load balancing
+    - **Schaling**: Horizontaal tot 1000+ requests/sec
+    - **Tech**: FastAPI met async support
+    - **Deployment**: Multi-instance met sticky sessions
+  </Accordion>
+  
+  <Accordion title="Document Service" icon="file">
+    - **Functie**: Document opslag en metadata
+    - **Schaling**: Sharding op document ID
+    - **Tech**: Supabase met CDN integratie
+    - **Deployment**: Multi-region replicatie
+  </Accordion>
+  
+  <Accordion title="OCR Service" icon="scan">
+    - **Functie**: Tekst extractie uit documenten
+    - **Schaling**: GPU-accelerated instances
+    - **Tech**: DocTR/TrOCR met batching
+    - **Deployment**: Auto-scaling worker pool
+  </Accordion>
+  
+  <Accordion title="AI Service" icon="brain">
+    - **Functie**: Intelligente data extractie
+    - **Schaling**: Model replicatie en caching
+    - **Tech**: LangChain met multiple LLMs
+    - **Deployment**: Load balanced endpoints
+  </Accordion>
+</AccordionGroup>
+
+## Horizontale Schaling Strategieën
+
+### 1. Stateless Design
+
+Alle services zijn stateless ontworpen voor eenvoudige schaling:
+
+```python
+# Geen server-side state
+@app.post("/api/v1/process")
+async def process_document(
+    file: UploadFile,
+    session: Session = Depends(get_session)  # Session uit Redis
+):
+    # Alle state in externe stores
+    doc_id = await storage.save(file)
+    await queue.publish({"doc_id": doc_id})
+    return {"status": "processing", "id": doc_id}
+```
+
+### 2. Database Sharding
+
+<Tabs>
+  <Tab title="Document Sharding">
+    ```sql
+    -- Sharding op INS nummer
+    CREATE TABLE documents_shard_1 
+    PARTITION OF documents
+    FOR VALUES WITH (modulus 4, remainder 0);
+    
+    CREATE TABLE documents_shard_2
+    PARTITION OF documents  
+    FOR VALUES WITH (modulus 4, remainder 1);
+    ```
+  </Tab>
+  
+  <Tab title="Time-based Partitioning">
+    ```sql
+    -- Partities per maand voor historische data
+    CREATE TABLE documents_2024_01
+    PARTITION OF documents
+    FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+    ```
+  </Tab>
+</Tabs>
+
+### 3. Caching Layers
+
+<Note>
+  Multi-level caching vermindert database load en verbetert response times bij schaling.
+</Note>
+
+#### Cache Hiërarchie
+
+1. **Browser Cache**: Static assets (7 dagen)
+2. **CDN Cache**: API responses (5 minuten)
+3. **Redis Cache**: Session data (30 minuten)
+4. **Application Cache**: Computed results (1 uur)
+
+## Asynchrone Verwerking
+
+### Message Queue Architecture
+
+<Card title="Event-Driven Processing" icon="diagram-project">
+  ```python
+  # Publisher
+  async def publish_document_event(doc_id: str):
+      await queue.publish({
+          "event": "document.uploaded",
+          "doc_id": doc_id,
+          "timestamp": datetime.utcnow()
+      })
+  
+  # Consumers (kunnen onafhankelijk schalen)
+  @queue.subscribe("document.uploaded")
+  async def process_ocr(event):
+      # OCR processing
+      
+  @queue.subscribe("document.uploaded")  
+  async def process_ai(event):
+      # AI extraction
+  ```
+</Card>
+
+### Worker Pool Management
+
+<Steps>
+  <Step title="Auto-scaling">
+    Workers schalen automatisch op basis van queue depth
+  </Step>
+  
+  <Step title="Priority Queues">
+    Urgente taken krijgen voorrang in verwerking
+  </Step>
+  
+  <Step title="Dead Letter Queue">
+    Mislukte taken worden automatisch herverwerkt
+  </Step>
+  
+  <Step title="Circuit Breaker">
+    Bescherming tegen cascade failures
+  </Step>
+</Steps>
+
+## Load Balancing Strategieën
+
+### 1. Geographic Distribution
+
+<Card title="Multi-Region Deployment" icon="globe">
+  Het systeem kan wereldwijd worden uitgerold:
+  
+  - **EU-West**: Amsterdam datacenter
+  - **EU-Central**: Frankfurt datacenter  
+  - **US-East**: Virginia datacenter
+  - **APAC**: Singapore datacenter
+  
+  Met automatische routing naar dichtstbijzijnde region.
+</Card>
+
+### 2. Intelligent Routing
+
+```nginx
+# Nginx configuratie voor smart routing
+upstream api_servers {
+    least_conn;  # Least connections algoritme
+    
+    server api1.3wm.com weight=3;
+    server api2.3wm.com weight=2;
+    server api3.3wm.com weight=1 backup;
+    
+    keepalive 32;
+}
+```
+
+### 3. Service Mesh
+
+<AccordionGroup>
+  <Accordion title="Traffic Management" icon="traffic-light">
+    - Canary deployments
+    - Blue-green releases
+    - A/B testing
+    - Circuit breaking
+  </Accordion>
+  
+  <Accordion title="Observability" icon="eye">
+    - Distributed tracing
+    - Service dependency mapping
+    - Performance monitoring
+    - Error tracking
+  </Accordion>
+  
+  <Accordion title="Security" icon="shield">
+    - mTLS tussen services
+    - Service-to-service authentication
+    - Rate limiting per service
+    - DDoS protection
+  </Accordion>
+</AccordionGroup>
+
+## Performance bij Schaal
+
+### Benchmarks
+
+| Metric | Single Instance | 10 Instances | 100 Instances |
+|--------|----------------|--------------|---------------|
+| Requests/sec | 1,000 | 9,500 | 95,000 |
+| Documents/dag | 10,000 | 95,000 | 950,000 |
+| Latency (p99) | 100ms | 110ms | 120ms |
+| Uptime | 99.9% | 99.95% | 99.99% |
+
+### Optimalisatie Technieken
+
+<CardGroup cols={2}>
+  <Card title="Connection Pooling" icon="swimming-pool">
+    Efficiënt hergebruik van database connecties
+  </Card>
+  
+  <Card title="Batch Processing" icon="layer-group">
+    Groeperen van vergelijkbare taken
+  </Card>
+  
+  <Card title="Lazy Loading" icon="hourglass">
+    Data alleen laden wanneer nodig
+  </Card>
+  
+  <Card title="Pre-computation" icon="calculator">
+    Veelgebruikte resultaten vooraf berekenen
+  </Card>
+</CardGroup>
+
+## Elastische Infrastructuur
+
+### Auto-scaling Policies
+
+```yaml
+# Kubernetes HPA configuratie
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-deployment
+  minReplicas: 3
+  maxReplicas: 100
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+### Cost-Effective Scaling
+
+<Note>
+  Het systeem schaalt intelligent om kosten te optimaliseren zonder performance impact.
+</Note>
+
+#### Scaling Strategieën
+
+1. **Predictive Scaling**: Op basis van historische patronen
+2. **Reactive Scaling**: Real-time response op load
+3. **Scheduled Scaling**: Voor bekende piekuren
+4. **Spot Instance Usage**: Voor non-critical workloads
+
+## Multi-Tenant Architectuur
+
+### Tenant Isolation
+
+<Card title="Complete Data Segregatie" icon="building">
+  ```python
+  # Row-level security in Supabase
+  CREATE POLICY tenant_isolation ON documents
+  FOR ALL USING (tenant_id = current_setting('app.tenant_id'));
+  
+  # Application level filtering
+  @app.middleware("http")
+  async def tenant_context(request: Request, call_next):
+      tenant_id = extract_tenant_from_request(request)
+      request.state.tenant_id = tenant_id
+      return await call_next(request)
+  ```
+</Card>
+
+### Resource Allocation
+
+- **Dedicated Pools**: Voor enterprise klanten
+- **Shared Resources**: Voor kleine organisaties
+- **Fair Use Policies**: Preventie van noisy neighbors
+- **QoS Guarantees**: SLA-based resource allocation
+
+## Toekomstbestendige Architectuur
+
+### Technologie Adoptie
+
+Het systeem is voorbereid op:
+
+<CardGroup cols={2}>
+  <Card title="Quantum Computing" icon="atom">
+    Quantum-resistant encryptie ready
+  </Card>
+  
+  <Card title="Edge Computing" icon="microchip">
+    Edge deployment mogelijkheden
+  </Card>
+  
+  <Card title="5G Networks" icon="signal">
+    Optimalisatie voor lage latency
+  </Card>
+  
+  <Card title="Green Computing" icon="leaf">
+    Energy-efficient processing
+  </Card>
+</CardGroup>
+
+## Migratie Pad
+
+### Van Monolith naar Microservices
+
+<Steps>
+  <Step title="Fase 1: Modularisatie">
+    Opdelen van monolith in modules
+  </Step>
+  
+  <Step title="Fase 2: Service Extraction">
+    Kritieke services eerst isoleren
+  </Step>
+  
+  <Step title="Fase 3: Data Decoupling">
+    Database per service implementeren
+  </Step>
+  
+  <Step title="Fase 4: Full Distribution">
+    Complete microservices architectuur
+  </Step>
+</Steps>
+
+## Volgende Stappen
+
+<Card title="Ontdek AI Integratie" icon="brain" href="/3wm-project/sterke-punten/ai-integratie">
+  Zie hoe geavanceerde AI de schaalbaarheid verder verbetert
+</Card> 

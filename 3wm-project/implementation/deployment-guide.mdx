@@ -1,0 +1,528 @@
+---
+title: "Deployment Guide"
+description: "Complete gids voor het deployen van het 3WM systeem"
+icon: "rocket"
+---
+
+## Quick Start Guide
+
+### Prerequisites
+
+<Card title="System Requirements" icon="server">
+  - Python 3.11 of hoger
+  - Docker en Docker Compose
+  - Node.js 18+ (voor frontend development)
+  - Git
+</Card>
+
+<Card title="External Services" icon="cloud">
+  - Supabase account (managed PostgreSQL + storage)
+  - Neo4j Aura account (managed graph database)
+  - OpenAI API key
+</Card>
+
+## 1. Initial Setup
+
+### Clone en Configureer
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone <repository-url>
+    cd 3WM-good
+    ```
+  </Step>
+  
+  <Step title="Environment Setup">
+    ```bash
+    # Kopieer environment configuratie
+    cp .env.example .env
+    
+    # Edit .env met uw credentials
+    nano .env
+    ```
+  </Step>
+</Steps>
+
+### Environment Variables
+
+<Tabs>
+  <Tab title="Database Config">
+    ```bash
+    # Database Configuration
+    DATABASE_URL=postgresql://user:password@localhost/3wm_db
+    SUPABASE_URL=https://your-project.supabase.co
+    SUPABASE_KEY=your-supabase-anon-key
+    
+    # Neo4j Configuration
+    NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
+    NEO4J_USER=neo4j
+    NEO4J_PASSWORD=your-password
+    ```
+  </Tab>
+  
+  <Tab title="API Keys">
+    ```bash
+    # OpenAI Configuration
+    OPENAI_API_KEY=sk-your-openai-key
+    
+    # Optional: Anthropic
+    ANTHROPIC_API_KEY=sk-ant-your-key
+    
+    # Optional: Tavily Search
+    TAVILY_API_KEY=tvly-your-key
+    ```
+  </Tab>
+  
+  <Tab title="Security">
+    ```bash
+    # Security
+    SECRET_KEY=your-super-secret-key-here
+    CORS_ORIGINS=http://localhost:3000,https://your-domain.com
+    
+    # JWT Settings
+    ACCESS_TOKEN_EXPIRE_MINUTES=1440  # 24 hours
+    REFRESH_TOKEN_EXPIRE_DAYS=30
+    ```
+  </Tab>
+  
+  <Tab title="Application">
+    ```bash
+    # Application Settings
+    ENVIRONMENT=development
+    DEBUG=true
+    HOST=0.0.0.0
+    PORT=8000
+    
+    # Features
+    PROMETHEUS_ENABLED=true
+    RATE_LIMIT_ENABLED=true
+    ```
+  </Tab>
+</Tabs>
+
+## 2. Development Setup
+
+### Python Environment
+
+<CardGroup cols={2}>
+  <Card title="Traditionele Setup" icon="python">
+    ```bash
+    # Maak virtual environment
+    python -m venv .venv
+    source .venv/bin/activate
+    # Windows: .venv\Scripts\activate
+    
+    # Installeer dependencies
+    pip install -r requirements.txt
+    ```
+  </Card>
+  
+  <Card title="UV Setup (Sneller)" icon="bolt">
+    ```bash
+    # Installeer uv
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Installeer dependencies
+    uv pip install -r requirements.txt
+    ```
+  </Card>
+</CardGroup>
+
+### Database Setup
+
+<Steps>
+  <Step title="Start PostgreSQL">
+    ```bash
+    # Start lokale PostgreSQL met Docker
+    docker-compose up -d db
+    
+    # Verificeer database draait
+    docker-compose ps
+    ```
+  </Step>
+  
+  <Step title="Database Migraties">
+    ```bash
+    # Database tabellen worden automatisch aangemaakt
+    # door SQLModel bij eerste applicatie start
+    
+    # Optioneel: Run migrations manually
+    python -m app.db.init_db
+    ```
+  </Step>
+</Steps>
+
+### Start Development Server
+
+```bash
+# Start de applicatie
+uvicorn app.main:app --reload
+
+# Of gebruik het development script
+python -m app.main
+
+# Access de applicatie
+# API: http://localhost:8000
+# Docs: http://localhost:8000/docs
+```
+
+<Info>
+De API documentatie is automatisch beschikbaar op `/docs` (Swagger UI) en `/redoc` (ReDoc).
+</Info>
+
+## 3. Production Deployment
+
+### Docker Deployment (Aanbevolen)
+
+<Tabs>
+  <Tab title="Docker Compose">
+    ```bash
+    # Build en start alle services
+    docker-compose up -d --build
+    
+    # Check status
+    docker-compose ps
+    
+    # View logs
+    docker-compose logs -f app
+    
+    # Scale API servers
+    docker-compose up -d --scale app=3
+    ```
+  </Tab>
+  
+  <Tab title="docker-compose.yml">
+    ```yaml
+    version: '3.8'
+    
+    services:
+      app:
+        build: .
+        ports:
+          - "8000:8000"
+        environment:
+          - DATABASE_URL=${DATABASE_URL}
+          - SUPABASE_URL=${SUPABASE_URL}
+          - SUPABASE_KEY=${SUPABASE_KEY}
+          - NEO4J_URI=${NEO4J_URI}
+          - OPENAI_API_KEY=${OPENAI_API_KEY}
+        depends_on:
+          - db
+          - redis
+        restart: unless-stopped
+        
+      db:
+        image: postgres:15
+        environment:
+          POSTGRES_DB: ai_document_intelligence
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        ports:
+          - "5432:5432"
+          
+      redis:
+        image: redis:7-alpine
+        ports:
+          - "6379:6379"
+        volumes:
+          - redis_data:/data
+          
+      nginx:
+        image: nginx:alpine
+        ports:
+          - "80:80"
+          - "443:443"
+        volumes:
+          - ./nginx.conf:/etc/nginx/nginx.conf
+          - ./ssl:/etc/nginx/ssl
+        depends_on:
+          - app
+          
+    volumes:
+      postgres_data:
+      redis_data:
+    ```
+  </Tab>
+</Tabs>
+
+### Cloud Deployment Options
+
+<CardGroup cols={3}>
+  <Card title="AWS" icon="aws">
+    - EC2 instances
+    - RDS voor PostgreSQL
+    - S3 voor storage
+    - CloudFront CDN
+  </Card>
+  
+  <Card title="Google Cloud" icon="google">
+    - Cloud Run
+    - Cloud SQL
+    - Cloud Storage
+    - Cloud CDN
+  </Card>
+  
+  <Card title="Azure" icon="microsoft">
+    - Container Instances
+    - Azure Database
+    - Blob Storage
+    - Azure CDN
+  </Card>
+</CardGroup>
+
+### Kubernetes Deployment
+
+<Accordion title="Kubernetes Manifests">
+  ```yaml
+  # deployment.yaml
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: 3wm-api
+  spec:
+    replicas: 3
+    selector:
+      matchLabels:
+        app: 3wm-api
+    template:
+      metadata:
+        labels:
+          app: 3wm-api
+      spec:
+        containers:
+        - name: api
+          image: 3wm-api:latest
+          ports:
+          - containerPort: 8000
+          env:
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: 3wm-secrets
+                key: database-url
+  ---
+  # service.yaml
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: 3wm-api-service
+  spec:
+    selector:
+      app: 3wm-api
+    ports:
+    - port: 80
+      targetPort: 8000
+    type: LoadBalancer
+  ```
+</Accordion>
+
+## 4. Configuration Management
+
+### Production Environment Variables
+
+<Warning>
+Gebruik altijd environment-specifieke configuraties en bewaar gevoelige data veilig!
+</Warning>
+
+```bash
+# Production .env
+ENVIRONMENT=production
+DEBUG=false
+SECRET_KEY=<gebruik-een-veilige-random-key>
+
+# Database
+DATABASE_URL=postgresql://prod_user:prod_pass@prod-db:5432/3wm_prod
+
+# External Services
+SUPABASE_URL=https://prod-project.supabase.co
+SUPABASE_KEY=<production-anon-key>
+NEO4J_URI=neo4j+s://prod.databases.neo4j.io
+```
+
+### SSL/TLS Configuration
+
+<Steps>
+  <Step title="Obtain SSL Certificate">
+    ```bash
+    # Met Let's Encrypt
+    certbot certonly --webroot -w /var/www/html -d your-domain.com
+    ```
+  </Step>
+  
+  <Step title="Configure Nginx">
+    ```nginx
+    server {
+        listen 443 ssl http2;
+        server_name your-domain.com;
+        
+        ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+        
+        location / {
+            proxy_pass http://app:8000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    ```
+  </Step>
+</Steps>
+
+## 5. Monitoring & Logging
+
+### Prometheus Setup
+
+```yaml
+# prometheus.yml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: '3wm-api'
+    static_configs:
+      - targets: ['app:8000']
+```
+
+### Grafana Dashboards
+
+<Info>
+Grafana dashboards zijn beschikbaar op `http://localhost:3001` met default credentials `admin/admin`.
+</Info>
+
+### Log Management
+
+```bash
+# View logs
+docker-compose logs -f app
+
+# Export logs
+docker-compose logs app > app.log
+
+# Log rotation
+logrotate -f /etc/logrotate.d/3wm
+```
+
+## 6. Backup & Recovery
+
+### Database Backup
+
+<Tabs>
+  <Tab title="PostgreSQL">
+    ```bash
+    # Backup
+    pg_dump -h localhost -U postgres 3wm_db > backup.sql
+    
+    # Restore
+    psql -h localhost -U postgres 3wm_db < backup.sql
+    
+    # Automated backup script
+    #!/bin/bash
+    DATE=$(date +%Y%m%d_%H%M%S)
+    pg_dump -h $DB_HOST -U $DB_USER $DB_NAME > backup_$DATE.sql
+    aws s3 cp backup_$DATE.sql s3://backups/
+    ```
+  </Tab>
+  
+  <Tab title="Neo4j">
+    ```bash
+    # Neo4j backup
+    neo4j-admin dump --database=neo4j --to=backup.dump
+    
+    # Restore
+    neo4j-admin load --from=backup.dump --database=neo4j
+    ```
+  </Tab>
+</Tabs>
+
+### Disaster Recovery Plan
+
+<Steps>
+  <Step title="Regular Backups">
+    Schedule dagelijkse backups van alle databases
+  </Step>
+  <Step title="Test Restores">
+    Test maandelijks restore procedures
+  </Step>
+  <Step title="Documentation">
+    Houd recovery procedures up-to-date
+  </Step>
+  <Step title="Monitoring">
+    Implementeer alerts voor backup failures
+  </Step>
+</Steps>
+
+## 7. Performance Tuning
+
+### Application Optimization
+
+```python
+# Async processing
+WORKERS = multiprocessing.cpu_count() * 2 + 1
+
+# Database connection pooling
+DATABASE_POOL_SIZE = 20
+DATABASE_MAX_OVERFLOW = 40
+
+# Redis caching
+CACHE_TTL = 3600  # 1 hour
+```
+
+### Database Optimization
+
+```sql
+-- Create indexes
+CREATE INDEX idx_documents_user_id ON documents(user_id);
+CREATE INDEX idx_documents_created_at ON documents(created_at);
+CREATE INDEX idx_documents_status ON documents(status);
+
+-- Analyze tables
+ANALYZE documents;
+ANALYZE users;
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port already in use">
+    ```bash
+    # Find process using port
+    lsof -i :8000
+    
+    # Kill process
+    kill -9 <PID>
+    ```
+  </Accordion>
+  
+  <Accordion title="Database connection errors">
+    - Verificeer DATABASE_URL is correct
+    - Check database is running
+    - Test connection met psql
+  </Accordion>
+  
+  <Accordion title="Docker issues">
+    ```bash
+    # Clean Docker
+    docker system prune -a
+    
+    # Rebuild containers
+    docker-compose down
+    docker-compose build --no-cache
+    docker-compose up -d
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Security Hardening" icon="shield" href="/3wm-project/implementation/security">
+    Implementeer extra security maatregelen
+  </Card>
+  
+  <Card title="Scaling Guide" icon="chart-line" href="/3wm-project/implementation/scaling">
+    Schaal naar enterprise niveau
+  </Card>
+</CardGroup> 

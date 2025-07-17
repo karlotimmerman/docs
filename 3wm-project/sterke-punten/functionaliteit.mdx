@@ -1,0 +1,250 @@
+---
+title: "Uitgebreide Functionaliteit"
+description: "Diepgaande analyse van de complete documentverwerkingspipeline"
+icon: "layer-group"
+---
+
+## Complete Documentverwerking Pipeline
+
+Het 3WM AI Document Intelligence systeem biedt een end-to-end oplossing voor documentverwerking die ver voorbij traditionele OCR gaat. De geïntegreerde pipeline transformeert ongestructureerde documenten in bruikbare bedrijfsintelligentie.
+
+## Kernfunctionaliteiten
+
+### 1. Intelligente Document Inname
+
+<Card title="Multi-Format Ondersteuning" icon="file-import">
+  Het systeem accepteert diverse documentformaten zonder voorbewerking:
+  - **PDF**: Native en gescande documenten
+  - **Afbeeldingen**: JPEG, PNG, TIFF, BMP
+  - **Email Attachments**: Automatische extractie
+  - **Batch Upload**: Meerdere documenten tegelijk
+</Card>
+
+#### Automatische Classificatie
+
+Het systeem herkent automatisch documenttypes:
+
+```python
+# Documenttype detectie op basis van inhoud
+- Facturen: BTW nummer, factuurnummer, totaalbedrag
+- Identiteitsbewijzen: BSN, geboortedatum, documentnummer  
+- Certificaten: Uitgevende instantie, geldigheidsperiode
+- Contracten: Partijen, handtekeningen, clausules
+```
+
+### 2. Geavanceerde Data Extractie
+
+<AccordionGroup>
+  <Accordion title="Factuur Extractie" icon="file-invoice">
+    **Geëxtraheerde Velden:**
+    - Leveranciersinformatie (naam, adres, KVK, BTW)
+    - Factuurnummer en datum
+    - Regelitems met beschrijving en bedragen
+    - BTW berekeningen
+    - Betalingstermijnen
+    - Bankgegevens (IBAN, BIC)
+    
+    **Nederlandse Specifieke Velden:**
+    - KVK nummer validatie
+    - BTW nummer format check
+    - Nederlandse postcode herkenning
+    - IBAN validatie voor NL accounts
+  </Accordion>
+  
+  <Accordion title="Identiteitsdocumenten" icon="id-card">
+    **Ondersteunde Documenten:**
+    - Nederlandse paspoorten
+    - ID-kaarten
+    - Rijbewijzen
+    - Verblijfsvergunningen
+    
+    **Privacy Features:**
+    - BSN masking optie
+    - GDPR-compliant opslag
+    - Automatische data minimalisatie
+  </Accordion>
+  
+  <Accordion title="Bedrijfscertificaten" icon="certificate">
+    **Verwerkte Types:**
+    - ISO certificeringen
+    - Vergunningen
+    - Diploma's en kwalificaties
+    - Verzekeringscertificaten
+    
+    **Validatie:**
+    - Geldigheidscontrole
+    - Uitgevende instantie verificatie
+    - Automatische verloopdatum waarschuwingen
+  </Accordion>
+</AccordionGroup>
+
+### 3. AI-Gestuurde Verrijking
+
+#### Context-Bewuste Extractie
+
+Het systeem begrijpt Nederlandse bedrijfscontext:
+
+<Note>
+  De AI herkent Nederlandse termen zoals "Totaal excl. BTW", "Te betalen binnen", "Grootboekrekening" en past extractielogica hierop aan.
+</Note>
+
+#### Slimme Veld Mapping
+
+```javascript
+// Voorbeeld van intelligente mapping
+{
+  "Totaal excl. BTW": "subtotal",
+  "BTW 21%": "tax_high_rate",
+  "BTW 9%": "tax_low_rate", 
+  "Totaal incl. BTW": "total_amount",
+  "Vervaldatum": "due_date",
+  "Uw referentie": "po_number"
+}
+```
+
+### 4. Journaalpost Voorspelling
+
+<Steps>
+  <Step title="Patroon Herkenning">
+    Analyse van historische boekingen voor vergelijkbare facturen
+  </Step>
+  
+  <Step title="Grootboek Mapping">
+    Automatische koppeling aan juiste grootboekrekeningen
+  </Step>
+  
+  <Step title="BTW Verwerking">
+    Correcte splitsing van BTW percentages (21%, 9%, 0%)
+  </Step>
+  
+  <Step title="Kostenplaats Toewijzing">
+    Intelligente suggesties voor kostenplaatsen
+  </Step>
+</Steps>
+
+### 5. Vendor Intelligence Platform
+
+#### 360° Leveranciers Overzicht
+
+<Card title="Leveranciers Dashboard" icon="users-gear">
+  Voor elke leverancier wordt automatisch een compleet profiel opgebouwd:
+  
+  - **Bedrijfsinformatie**: KVK, BTW, contactgegevens
+  - **Transactiehistorie**: Alle facturen en betalingen
+  - **Betalingsgedrag**: Gemiddelde betaaltermijn, kortingen
+  - **Risicoprofiel**: Fraudesignalen, afwijkingen
+  - **Relatienetwerk**: Verbindingen met andere leveranciers
+</Card>
+
+#### Fraudedetectie Signalen
+
+Het systeem detecteert automatisch:
+- Dubbele facturen
+- Ongebruikelijke bedragen
+- Hoge factuurfrequentie
+- Nieuwe/onbekende leveranciers
+- Afwijkende betalingsgegevens
+
+### 6. Natural Language Query Engine
+
+#### Nederlandse Taal Ondersteuning
+
+Gebruikers kunnen queries stellen in natuurlijk Nederlands:
+
+```
+"Hoeveel hebben we dit jaar aan IT kosten uitgegeven?"
+"Welke facturen van Acme BV zijn nog niet betaald?"
+"Toon alle facturen boven de €10.000 van Q3"
+"Welke leveranciers hebben we meer dan 3 maanden niet gezien?"
+```
+
+#### Intelligente Antwoorden
+
+De AI agent geeft contextuele antwoorden met:
+- Tabellen voor overzichten
+- Grafieken voor trends
+- Waarschuwingen voor afwijkingen
+- Suggesties voor vervolgacties
+
+### 7. Workflow Automatisering
+
+<AccordionGroup>
+  <Accordion title="Email Integratie" icon="envelope">
+    - Automatische email monitoring
+    - Slimme classificatie (factuur/herinnering/statement)
+    - Directe verwerking van facturen
+    - Approval queue voor betalingsherinneringen
+  </Accordion>
+  
+  <Accordion title="Batch Verwerking" icon="layer-group">
+    - Scheduled processing (configureerbaar)
+    - Parallelle documentverwerking
+    - Foutafhandeling met retry logica
+    - Progress tracking en notificaties
+  </Accordion>
+  
+  <Accordion title="Export Mogelijkheden" icon="file-export">
+    - AccountView XML export
+    - Excel rapporten
+    - PDF samenvattingen
+    - API integraties
+  </Accordion>
+</AccordionGroup>
+
+## Unieke Functionaliteiten
+
+### 1. INS Naamgeving Systeem
+
+Automatische, chronologische nummering van documenten:
+- **INS1, INS2, INS3...**: Eenvoudige referentie
+- **Audit Trail**: Complete historie
+- **Snelle Lookup**: Direct document vinden
+- **Geen Duplicaten**: Gegarandeerd uniek
+
+### 2. Multi-Tenant Ondersteuning
+
+<Note>
+  Het systeem ondersteunt meerdere organisaties met strikte data isolatie, ideaal voor accountantskantoren of shared service centers.
+</Note>
+
+### 3. Real-time Collaboration
+
+- **Simultane Toegang**: Meerdere gebruikers
+- **Change Tracking**: Wie deed wat wanneer
+- **Commentaar Functie**: Notities bij documenten
+- **Approval Workflows**: Goedkeuringsprocessen
+
+## Performance Kenmerken
+
+| Functie | Performance | Schaal |
+|---------|------------|--------|
+| OCR Verwerking | 2-3 sec/pagina | Tot 1000 pagina's/uur |
+| AI Extractie | 1-2 sec/document | Tot 10.000 docs/dag |
+| Vector Search | <100ms | Miljoen+ documenten |
+| Graph Queries | <50ms | 100k+ nodes |
+
+## Integratie Mogelijkheden
+
+<CardGroup cols={2}>
+  <Card title="AccountView" icon="calculator">
+    Native integratie voor journaalposten
+  </Card>
+  
+  <Card title="Microsoft 365" icon="microsoft">
+    Exchange email en SharePoint opslag
+  </Card>
+  
+  <Card title="Exact Online" icon="coins">
+    API koppeling voor real-time sync
+  </Card>
+  
+  <Card title="Custom API's" icon="code">
+    RESTful API voor maatwerk integraties
+  </Card>
+</CardGroup>
+
+## Volgende Stappen
+
+<Card title="Bekijk de Infrastructuur" icon="server" href="/3wm-project/sterke-punten/infrastructuur">
+  Ontdek hoe deze functionaliteiten worden ondersteund door een robuuste technische infrastructuur
+</Card> 

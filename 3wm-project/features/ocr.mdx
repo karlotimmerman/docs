@@ -1,0 +1,335 @@
+---
+title: "OCR & Document Processing"
+description: "Advanced optical character recognition with intelligent naming"
+icon: "file-lines"
+---
+
+## Overview
+
+The 3WM AI Document Intelligence system employs state-of-the-art OCR technology to extract text from various document formats with high accuracy. Our OCR pipeline combines multiple engines and AI models to ensure optimal results across different document types and qualities.
+
+## OCR Technologies
+
+<CardGroup cols={2}>
+  <Card title="DocTR" icon="microscope">
+    Deep learning-based OCR for high-quality text extraction
+  </Card>
+  
+  <Card title="TrOCR" icon="brain">
+    Transformer-based OCR for complex layouts
+  </Card>
+  
+  <Card title="Tesseract" icon="cube">
+    Fallback OCR engine for edge cases
+  </Card>
+  
+  <Card title="Custom Models" icon="wand-magic-sparkles">
+    Specialized models for industry-specific documents
+  </Card>
+</CardGroup>
+
+## INS Naming System
+
+The Intelligent Naming System (INS) automatically generates standardized filenames based on document content:
+
+```
+{DATE}_{VENDOR}_{DOCTYPE}_{AMOUNT}_{HASH}.pdf
+```
+
+Example:
+```
+20240115_ACMECORP_INVOICE_1250.00_a3b2c1.pdf
+```
+
+<Note>
+  The INS system ensures consistent file organization and makes documents easily searchable without relying on user-provided names.
+</Note>
+
+## Supported Formats
+
+### Document Types
+
+<Tabs>
+  <Tab title="Images">
+    - **JPEG/JPG**: Standard image format
+    - **PNG**: Lossless compression images
+    - **TIFF**: High-quality scanned documents
+    - **BMP**: Uncompressed bitmap images
+  </Tab>
+  
+  <Tab title="PDFs">
+    - **Native PDFs**: Text-based PDFs
+    - **Scanned PDFs**: Image-based PDFs
+    - **Mixed PDFs**: Combination of text and images
+    - **Multi-page PDFs**: Up to 100 pages
+  </Tab>
+</Tabs>
+
+### Document Categories
+
+<AccordionGroup>
+  <Accordion title="Invoices" icon="file-invoice">
+    - Vendor invoices
+    - Purchase orders
+    - Credit notes
+    - Receipts
+    - Billing statements
+  </Accordion>
+  
+  <Accordion title="Identity Documents" icon="id-card">
+    - Driver's licenses
+    - Passports
+    - National ID cards
+    - Social security cards
+    - Work permits
+  </Accordion>
+  
+  <Accordion title="Certificates" icon="certificate">
+    - Business licenses
+    - ISO certifications
+    - Training certificates
+    - Insurance certificates
+    - Compliance documents
+  </Accordion>
+</AccordionGroup>
+
+## OCR Pipeline
+
+```mermaid
+graph LR
+    A[Document Input] --> B[Format Detection]
+    B --> C[Pre-processing]
+    C --> D[OCR Engine Selection]
+    D --> E[Text Extraction]
+    E --> F[Post-processing]
+    F --> G[Quality Check]
+    G --> H[Output]
+```
+
+### Pre-processing Steps
+
+1. **Image Enhancement**
+   - Noise reduction
+   - Contrast adjustment
+   - Skew correction
+   - Resolution optimization
+
+2. **Layout Analysis**
+   - Text region detection
+   - Table identification
+   - Column separation
+   - Reading order determination
+
+3. **Format Conversion**
+   - PDF to image conversion
+   - Color space optimization
+   - DPI standardization
+
+### OCR Engine Selection
+
+The system intelligently selects the best OCR engine based on:
+
+```python
+def select_ocr_engine(document):
+    if document.has_tables:
+        return "doctr"  # Best for structured data
+    elif document.is_handwritten:
+        return "trocr"  # Transformer model
+    elif document.is_low_quality:
+        return "tesseract"  # Robust fallback
+    else:
+        return "doctr"  # Default choice
+```
+
+## Performance Metrics
+
+<Card title="OCR Accuracy" icon="chart-line">
+  | Document Type | Accuracy | Speed |
+  |---------------|----------|-------|
+  | Typed Text | 99.5% | 1-2s |
+  | Printed Forms | 98.2% | 2-3s |
+  | Handwritten | 94.1% | 3-4s |
+  | Poor Quality | 89.3% | 4-5s |
+</Card>
+
+## Advanced Features
+
+### Multi-language Support
+
+Supports 50+ languages including:
+- English, Spanish, French, German
+- Chinese, Japanese, Korean
+- Arabic, Hebrew (RTL support)
+- Cyrillic scripts
+
+### Table Extraction
+
+<CodeGroup>
+```python Example
+# Extracted table data
+{
+  "tables": [
+    {
+      "headers": ["Item", "Quantity", "Price", "Total"],
+      "rows": [
+        ["Widget A", "10", "$5.00", "$50.00"],
+        ["Widget B", "5", "$10.00", "$50.00"]
+      ],
+      "confidence": 0.98
+    }
+  ]
+}
+```
+
+```json Output
+{
+  "table_count": 1,
+  "total_cells": 12,
+  "extraction_confidence": 0.98,
+  "format": "structured_json"
+}
+```
+</CodeGroup>
+
+### Confidence Scoring
+
+Each extracted element includes confidence scores:
+
+```json
+{
+  "text": "Invoice #12345",
+  "confidence": 0.97,
+  "bounding_box": {
+    "x": 100,
+    "y": 50,
+    "width": 200,
+    "height": 30
+  }
+}
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Document Quality">
+    For best results, provide documents with:
+    - Resolution of at least 300 DPI
+    - Clear, unobstructed text
+    - Minimal background noise
+    - Proper orientation
+  </Step>
+  
+  <Step title="File Size">
+    - Recommended: 1-10 MB per file
+    - Maximum: 50 MB per file
+    - Compress large files before upload
+  </Step>
+  
+  <Step title="Batch Processing">
+    For multiple documents:
+    - Use batch upload endpoints
+    - Group similar document types
+    - Monitor processing queue
+  </Step>
+</Steps>
+
+## Error Handling
+
+Common OCR errors and solutions:
+
+<Accordion title="Low Confidence Results" icon="triangle-exclamation">
+  **Problem**: OCR confidence below 80%
+  
+  **Solutions**:
+  - Increase image resolution
+  - Improve lighting/contrast
+  - Use image enhancement tools
+  - Try alternative file format
+</Accordion>
+
+<Accordion title="Missing Text Regions" icon="eye-slash">
+  **Problem**: Some text areas not detected
+  
+  **Solutions**:
+  - Check for overlapping elements
+  - Ensure text has sufficient contrast
+  - Verify document orientation
+  - Use manual region selection
+</Accordion>
+
+## API Usage
+
+### Basic OCR Request
+
+```bash
+curl -X POST http://localhost:8000/upload/ \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@document.pdf"
+```
+
+### Response with OCR Data
+
+```json
+{
+  "status": "success",
+  "ocr_result": {
+    "full_text": "Invoice #12345\nDate: 2024-01-15\n...",
+    "pages": [
+      {
+        "page_number": 1,
+        "text": "...",
+        "confidence": 0.96,
+        "word_count": 245
+      }
+    ],
+    "processing_time": 2.34,
+    "engine_used": "doctr"
+  }
+}
+```
+
+## Integration Examples
+
+<CodeGroup>
+```python Python
+import requests
+
+def process_document(file_path):
+    with open(file_path, 'rb') as f:
+        response = requests.post(
+            'http://localhost:8000/upload/',
+            files={'file': f},
+            headers={'Authorization': f'Bearer {token}'}
+        )
+    return response.json()
+```
+
+```javascript JavaScript
+async function processDocument(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch('http://localhost:8000/upload/', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  });
+  
+  return response.json();
+}
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="AI Extraction" icon="robot" href="/3wm-project/features/ai-extraction">
+    Learn how AI extracts structured data from OCR results
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/3wm-project/api/endpoints/upload">
+    Detailed API documentation for OCR endpoints
+  </Card>
+</CardGroup> 

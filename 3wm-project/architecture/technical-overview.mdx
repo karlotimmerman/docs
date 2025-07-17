@@ -1,0 +1,530 @@
+---
+title: "Technische Architectuur"
+description: "Diepgaande technische documentatie van de 3WM AI Document Intelligence architectuur"
+icon: "sitemap"
+---
+
+## Architectuur Overzicht
+
+Het 3WM platform is gebouwd volgens moderne cloud-native principes met een focus op schaalbaarheid, betrouwbaarheid en onderhoudbaarheid.
+
+<Card title="Design Principes" icon="compass">
+  - **Microservices**: Losjes gekoppelde diensten voor flexibiliteit
+  - **Event-Driven**: Asynchrone verwerking voor schaalbaarheid
+  - **API-First**: RESTful APIs met OpenAPI specificaties
+  - **Cloud-Native**: Container-based deployment met Kubernetes support
+  - **Security-by-Design**: Zero-trust architectuur met encryptie
+</Card>
+
+## Systeem Componenten
+
+### 1. Frontend Layer
+
+<Info>
+Het systeem biedt momenteel alleen API endpoints. Een web UI is gepland voor toekomstige releases.
+</Info>
+
+**Geplande Frontend Stack:**
+- React 18+ met TypeScript
+- TailwindCSS voor styling
+- React Query voor state management
+- Recharts voor data visualisatie
+
+### 2. API Gateway Layer
+
+```python
+# FastAPI configuratie
+app = FastAPI(
+    title="3WM AI Document Intelligence",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
+)
+
+# Middleware stack
+app.add_middleware(CORSMiddleware, allow_origins=["*"])
+app.add_middleware(RateLimitMiddleware, calls=100, period=3600)
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(AuthenticationMiddleware)
+```
+
+**API Features:**
+- JWT authenticatie met refresh tokens
+- Rate limiting per gebruiker/IP
+- Request/Response logging
+- OpenAPI 3.0 documentatie
+- WebSocket support voor real-time updates
+
+### 3. Application Services Layer
+
+<Tabs>
+  <Tab title="Email Service">
+    ```python
+    class EmailProcessor:
+        """Microsoft Graph API integratie voor email verwerking."""
+        
+        def __init__(self):
+            self.msal_app = ConfidentialClientApplication(
+                client_id=settings.MS_GRAPH_CLIENT_ID,
+                client_credential=settings.MS_GRAPH_CLIENT_SECRET,
+                authority=f"https://login.microsoftonline.com/{settings.MS_GRAPH_TENANT_ID}"
+            )
+    ```
+    
+    **Functionaliteiten:**
+    - OAuth 2.0 token management
+    - Email filtering en classificatie
+    - Attachment extractie
+    - Batch processing support
+  </Tab>
+  
+  <Tab title="OCR Service">
+    ```python
+    class OCRService:
+        """Multi-engine OCR service met fallback mechanisme."""
+        
+        def process(self, document: bytes) -> str:
+            try:
+                # Primaire engine: DocTR
+                return self.doctr_process(document)
+            except Exception as e:
+                logger.warning(f"DocTR failed: {e}")
+                # Fallback: Tesseract
+                return self.tesseract_process(document)
+    ```
+    
+    **OCR Pipeline:**
+    1. Image preprocessing (deskew, denoise)
+    2. Text detection
+    3. Text recognition
+    4. Post-processing (spell check)
+  </Tab>
+  
+  <Tab title="AI Service">
+    ```python
+    class AIExtractionService:
+        """LLM-based field extraction service."""
+        
+        def __init__(self):
+            self.llm = ChatOpenAI(
+                model="gpt-4-turbo",
+                temperature=0,
+                max_tokens=4096
+            )
+            self.embeddings = OpenAIEmbeddings(
+                model="text-embedding-3-small"
+            )
+    ```
+    
+    **AI Capabilities:**
+    - Structured data extraction
+    - Document classification
+    - Semantic search
+    - Natural language queries
+  </Tab>
+</Tabs>
+
+### 4. Data Layer
+
+Het systeem gebruikt een polyglot persistence strategie:
+
+<AccordionGroup>
+  <Accordion title="PostgreSQL (Primary Database)">
+    **Gebruik:** Authenticatie en systeem metadata
+    
+    ```sql
+    -- User authentication schema
+    CREATE TABLE users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- Refresh tokens
+    CREATE TABLE refresh_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id),
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL
+    );
+    ```
+  </Accordion>
+  
+  <Accordion title="Supabase (Business Data + Vectors)">
+    **Gebruik:** Document opslag en vector search
+    
+    ```sql
+    -- Documents table met vector kolom
+    CREATE TABLE documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        ins_filename VARCHAR(255) UNIQUE NOT NULL,
+        vendor_name VARCHAR(255),
+        total_amount DECIMAL(10,2),
+        status VARCHAR(50),
+        extracted_data JSONB,
+        embedding vector(1536),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- Vector similarity search index
+    CREATE INDEX ON documents 
+    USING ivfflat (embedding vector_cosine_ops)
+    WITH (lists = 100);
+    ```
+  </Accordion>
+  
+  <Accordion title="Neo4j (Graph Database)">
+    **Gebruik:** Relatie analyse en fraude detectie
+    
+    ```cypher
+    // Graph schema
+    CREATE CONSTRAINT vendor_name_unique 
+    ON (v:Vendor) ASSERT v.name IS UNIQUE;
+    
+    CREATE CONSTRAINT invoice_ins_unique 
+    ON (i:Invoice) ASSERT i.ins_filename IS UNIQUE;
+    
+    // Relaties
+    (vendor:Vendor)-[:SUPPLIED]->(invoice:Invoice)
+    (invoice:Invoice)-[:POSTED_TO]->(account:Account)
+    (vendor:Vendor)-[:SIMILAR_TO {score: 0.85}]->(vendor2:Vendor)
+    ```
+  </Accordion>
+  
+  <Accordion title="Redis (Cache - Gepland)">
+    **Gebruik:** Session cache en rate limiting
+    
+    ```python
+    # Redis configuratie (nog niet geïmplementeerd)
+    REDIS_CONFIG = {
+        "host": "localhost",
+        "port": 6379,
+        "db": 0,
+        "decode_responses": True,
+        "max_connections": 50
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Deployment Architectuur
+
+### Docker Compose Setup
+
+```yaml
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/3wm
+      - NEO4J_URI=bolt://neo4j:7687
+    depends_on:
+      - postgres
+      - neo4j
+    volumes:
+      - ./app:/app
+    command: uvicorn app.main:app --reload --host 0.0.0.0
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: 3wm
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  neo4j:
+    image: neo4j:5
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/password
+    volumes:
+      - neo4j_data:/data
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  neo4j_data:
+```
+
+### Kubernetes Deployment (Production)
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 3wm-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: 3wm-api
+  template:
+    metadata:
+      labels:
+        app: 3wm-api
+    spec:
+      containers:
+      - name: api
+        image: 3wm/api:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: 3wm-secrets
+              key: database-url
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+```
+
+## Security Architectuur
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant Auth Service
+    participant Database
+    
+    User->>API: POST /auth/login (email, password)
+    API->>Auth Service: Validate credentials
+    Auth Service->>Database: Check user
+    Database-->>Auth Service: User data
+    Auth Service->>Auth Service: Verify password hash
+    Auth Service->>Auth Service: Generate JWT tokens
+    Auth Service-->>API: Access & Refresh tokens
+    API-->>User: 200 OK (tokens)
+    
+    User->>API: GET /documents (Bearer token)
+    API->>Auth Service: Validate JWT
+    Auth Service-->>API: User context
+    API->>Database: Query with user context
+    Database-->>API: Filtered results
+    API-->>User: 200 OK (documents)
+```
+
+### Data Encryption
+
+<Card title="Encryption Standards" icon="lock">
+  - **At Rest**: AES-256 voor database encryptie
+  - **In Transit**: TLS 1.3 voor alle communicatie
+  - **Passwords**: bcrypt met cost factor 12
+  - **Tokens**: RS256 signed JWT tokens
+  - **Files**: Client-side encryption voor gevoelige documenten
+</Card>
+
+## Performance Optimalisaties
+
+### Caching Strategy
+
+```python
+# Geplande Redis caching implementatie
+class CacheService:
+    def __init__(self):
+        self.redis = Redis(
+            connection_pool=ConnectionPool(**REDIS_CONFIG)
+        )
+    
+    async def get_or_set(self, key: str, func: Callable, ttl: int = 3600):
+        """Cache-aside pattern implementatie."""
+        # Check cache
+        cached = await self.redis.get(key)
+        if cached:
+            return json.loads(cached)
+        
+        # Compute value
+        value = await func()
+        
+        # Store in cache
+        await self.redis.setex(
+            key, 
+            ttl, 
+            json.dumps(value, default=str)
+        )
+        
+        return value
+```
+
+### Database Optimalisaties
+
+<Tabs>
+  <Tab title="Query Optimization">
+    ```sql
+    -- Composite indexes voor frequent queries
+    CREATE INDEX idx_documents_vendor_date 
+    ON documents(vendor_name, created_at DESC);
+    
+    CREATE INDEX idx_documents_status_date 
+    ON documents(status, created_at DESC);
+    
+    -- Partial index voor pending documents
+    CREATE INDEX idx_documents_pending 
+    ON documents(created_at DESC) 
+    WHERE status = 'pending';
+    ```
+  </Tab>
+  
+  <Tab title="Connection Pooling">
+    ```python
+    # SQLAlchemy connection pool
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=20,
+        max_overflow=40,
+        pool_pre_ping=True,
+        pool_recycle=3600
+    )
+    ```
+  </Tab>
+  
+  <Tab title="Batch Processing">
+    ```python
+    # Bulk insert optimization
+    async def bulk_insert_documents(documents: List[Dict]):
+        """Efficient bulk insert met COPY."""
+        async with get_db() as db:
+            # Use PostgreSQL COPY for performance
+            await db.execute(
+                """
+                COPY documents (ins_filename, vendor_name, total_amount)
+                FROM STDIN WITH CSV
+                """,
+                documents
+            )
+    ```
+  </Tab>
+</Tabs>
+
+## Monitoring & Observability
+
+### Metrics Collection
+
+```python
+# Prometheus metrics
+from prometheus_client import Counter, Histogram, Gauge
+
+# Request metrics
+request_count = Counter(
+    'http_requests_total',
+    'Total HTTP requests',
+    ['method', 'endpoint', 'status']
+)
+
+request_duration = Histogram(
+    'http_request_duration_seconds',
+    'HTTP request duration',
+    ['method', 'endpoint']
+)
+
+# Business metrics
+documents_processed = Counter(
+    'documents_processed_total',
+    'Total documents processed',
+    ['status', 'doc_type']
+)
+
+ocr_duration = Histogram(
+    'ocr_processing_duration_seconds',
+    'OCR processing time',
+    ['engine']
+)
+```
+
+### Logging Architecture
+
+```python
+# Structured logging configuratie
+import structlog
+
+logger = structlog.get_logger()
+
+logger = logger.bind(
+    service="3wm-api",
+    environment=settings.ENVIRONMENT,
+    version=settings.VERSION
+)
+
+# Request context logging
+@app.middleware("http")
+async def logging_middleware(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    
+    with logger.contextvars(
+        request_id=request_id,
+        method=request.method,
+        path=request.url.path
+    ):
+        start_time = time.time()
+        response = await call_next(request)
+        duration = time.time() - start_time
+        
+        logger.info(
+            "request_completed",
+            status_code=response.status_code,
+            duration=duration
+        )
+        
+        return response
+```
+
+## Disaster Recovery
+
+<Steps>
+  <Step title="Backup Strategy">
+    - **Database**: Dagelijkse snapshots + point-in-time recovery
+    - **Files**: Incrementele S3 backups elk uur
+    - **Configuratie**: Git-based config management
+  </Step>
+  
+  <Step title="High Availability">
+    - **API**: Multi-AZ deployment met load balancing
+    - **Database**: Master-slave replicatie
+    - **Neo4j**: Causal cluster met 3 nodes
+  </Step>
+  
+  <Step title="Recovery Procedures">
+    - **RTO**: 4 uur voor volledige service restore
+    - **RPO**: Maximaal 1 uur data verlies
+    - **Automated failover**: Voor kritieke componenten
+  </Step>
+</Steps>
+
+## Toekomstige Architectuur Verbeteringen
+
+<Card title="Roadmap" icon="road">
+  1. **Event Sourcing**: Voor complete audit trail
+  2. **CQRS Pattern**: Scheiding read/write workloads
+  3. **Service Mesh**: Istio voor advanced traffic management
+  4. **GraphQL Gateway**: Voor flexibele client queries
+  5. **Edge Computing**: Local OCR processing voor privacy
+</Card> 

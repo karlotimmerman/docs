@@ -1,0 +1,144 @@
+graph TB
+    %% Main Document Processing Workflow
+    subgraph "Document Upload & Processing"
+        A[User Upload] -->|POST /api/upload| B[Generate INS Name]
+        B --> C[Store in Supabase]
+        C --> D[Create DB Record]
+        D --> E{File Type?}
+        E -->|PDF| F[PDF to Images]
+        E -->|Image| G[Image Preprocessing]
+        F --> G
+        G --> H[OCR Processing<br/>DocTR/TrOCR]
+        H --> I[Text Extraction]
+        I --> J[Field Extraction]
+        J --> K{Document Type?}
+        K -->|Invoice| L[Invoice Fields]
+        K -->|ID Card| M[ID Fields]
+        K -->|Certificate| N[Certificate Fields]
+        L --> O[Generate Embeddings]
+        M --> O
+        N --> O
+        O --> P[Store in PGVector]
+        P --> Q[Similarity Search]
+        Q --> R{Duplicate?}
+        R -->|Yes| S[Flag Duplicate]
+        R -->|No| T[Continue]
+        S --> U[Update Status]
+        T --> U
+    end
+
+    %% Invoice-Specific Processing
+    subgraph "Invoice Processing"
+        L --> V[Extract Line Items]
+        V --> W[Calculate Totals]
+        W --> X[VAT Validation]
+        X --> Y[Vendor Extraction]
+        Y --> Z[Journal Prediction]
+        Z --> AA[AccountView Format]
+        AA --> AB[Store Journal Entry]
+        AB --> AC[Neo4j Graph Update]
+        AC --> AD{Fraud Detection}
+        AD -->|Risk > 0.5| AE[Fraud Alert]
+        AD -->|Risk <= 0.5| AF[Normal]
+        AE --> AG[Store Risk Score]
+        AF --> AG
+    end
+
+    %% Batch Processing Workflow
+    subgraph "Batch Processing"
+        BA[CLI: manage_documents.py] --> BB{Command?}
+        BB -->|process| BC[Get Pending Docs]
+        BB -->|next| BD[Get Oldest Doc]
+        BB -->|rename| BE[Rename to INS]
+        BB -->|list| BF[List Documents]
+        BB -->|stats| BG[Show Statistics]
+        BC --> BH[Process Chronologically]
+        BD --> BH
+        BH --> BI[Process Single Doc]
+        BI --> H
+    end
+
+    %% AI Agent Workflow
+    subgraph "AI Agent (LangGraph)"
+        CA[Natural Language Query] -->|POST /api/agent/query| CB[Parse Query]
+        CB --> CC[Determine Intent]
+        CC --> CD{Tool Selection}
+        CD -->|Document Query| CE[Document Tools]
+        CD -->|Vendor Analysis| CF[Vendor Tools]
+        CD -->|Journal Prediction| CG[Prediction Tools]
+        CD -->|Statistics| CH[Stats Tools]
+        CD -->|Web Search| CI[Search Tools]
+        CE --> CJ[Execute Tools]
+        CF --> CJ
+        CG --> CJ
+        CH --> CJ
+        CI --> CJ
+        CJ --> CK[Format Response]
+        CK --> CL[Return to User]
+    end
+
+    %% Authentication Workflow
+    subgraph "Authentication"
+        DA[User Request] --> DB{Has Token?}
+        DB -->|No| DC[Register/Login]
+        DC --> DD[Generate JWT]
+        DD --> DE[Create Session]
+        DB -->|Yes| DF[Verify Token]
+        DF --> DG{Valid?}
+        DG -->|Yes| DH[Process Request]
+        DG -->|No| DI[401 Unauthorized]
+    end
+
+    %% Neo4j Graph Workflows
+    subgraph "Neo4j Graph Operations"
+        EA[Invoice Data] --> EB[Create Vendor Node]
+        EB --> EC[Create Invoice Node]
+        EC --> ED[Create Relationships]
+        ED --> EE[SUPPLIED Relationship]
+        EE --> EF[POSTED_TO Accounts]
+        EF --> EG[Calculate Risk Signals]
+        EG --> EH{Fraud Signals}
+        EH -->|Duplicate| EI[Flag Duplicate]
+        EH -->|Unusual Amount| EJ[Flag Amount]
+        EH -->|New Vendor| EK[Flag New]
+        EH -->|High Velocity| EL[Flag Velocity]
+    end
+
+    %% Journal Entry Prediction
+    subgraph "Journal Entry Prediction"
+        FA[Invoice Fields] --> FB[Find Similar Invoices]
+        FB --> FC[Analyze Patterns]
+        FC --> FD[Predict Accounts]
+        FD --> FE[Assign Cost Centers]
+        FE --> FF[Calculate Confidence]
+        FF --> FG[Generate Entry]
+        FG --> FH[AccountView Format]
+    end
+
+    %% Monitoring & Logging
+    subgraph "Infrastructure"
+        GA[All Requests] --> GB[Rate Limiter]
+        GB --> GC[Auth Middleware]
+        GC --> GD[Prometheus Metrics]
+        GD --> GE[Structured Logging]
+        GE --> GF[Process Request]
+        GF --> GG[Response]
+    end
+
+    %% Web Search & Enrichment
+    subgraph "Supplier Enrichment"
+        HA[Supplier Name] --> HB[Web Search]
+        HB --> HC[Extract Info]
+        HC --> HD[Validate Data]
+        HD --> HE[Update Supplier]
+        HE --> HF[Audit Trail]
+    end
+
+    %% Connections between workflows
+    U --> BA
+    AG --> CA
+    CJ --> EA
+    CJ --> FA
+    CJ --> HA
+    DH --> A
+    DH --> CA 

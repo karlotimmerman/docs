@@ -1,0 +1,461 @@
+---
+title: "API Documentatie"
+description: "Complete API referentie met voorbeelden voor het 3WM systeem"
+icon: "code"
+---
+
+## Base URL
+
+```bash
+Production: https://api.3wm.ai
+Development: http://localhost:8000
+```
+
+## Authenticatie
+
+De API gebruikt JWT (JSON Web Token) authenticatie. Voeg het token toe aan de Authorization header:
+
+```bash
+Authorization: Bearer <your_jwt_token>
+```
+
+### Authenticatie Flow
+
+<Steps>
+  <Step title="Register">
+    Maak een nieuw gebruikersaccount
+  </Step>
+  <Step title="Login">
+    Verkrijg JWT access en refresh tokens
+  </Step>
+  <Step title="Access">
+    Gebruik access token voor API calls
+  </Step>
+  <Step title="Refresh">
+    Gebruik refresh token voor nieuwe access token
+  </Step>
+</Steps>
+
+## Core Endpoints
+
+### 1. Authenticatie
+
+<Tabs>
+  <Tab title="Register">
+    ```http
+    POST /api/v1/auth/register
+    Content-Type: application/json
+    
+    {
+      "email": "user@company.com",
+      "password": "secure_password_123"
+    }
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "user": {
+        "id": 1,
+        "email": "user@company.com",
+        "created_at": "2024-01-15T10:30:00Z"
+      },
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "token_type": "bearer"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Login">
+    ```http
+    POST /api/v1/auth/login
+    Content-Type: application/json
+    
+    {
+      "email": "user@company.com",
+      "password": "secure_password_123"
+    }
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "user": {
+        "id": 1,
+        "email": "user@company.com"
+      },
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "token_type": "bearer"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Refresh Token">
+    ```http
+    POST /api/v1/auth/refresh
+    Content-Type: application/json
+    
+    {
+      "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### 2. Document Upload & Processing
+
+#### Upload Document
+
+<Card title="POST /api/v1/upload/" icon="upload">
+  ```http
+  POST /api/v1/upload/
+  Authorization: Bearer <token>
+  Content-Type: multipart/form-data
+  
+  file: <binary_file_data>
+  ```
+  
+  **Ondersteunde Bestandstypes:**
+  - PDF documenten
+  - Afbeeldingen: JPEG, JPG, PNG, TIFF, BMP
+  - Maximale bestandsgrootte: 50MB
+</Card>
+
+**Success Response:**
+```json
+{
+  "status": "success",
+  "document_id": "INS123456",
+  "file_url": "https://storage.supabase.co/v1/object/public/documents/user-1/invoice.pdf",
+  "document_type": "invoice",
+  "extracted_fields": {
+    "invoice_number": "INV-2024-001",
+    "date": "2024-01-15",
+    "due_date": "2024-02-15",
+    "total_amount": 1250.00,
+    "vendor_name": "ABC Corporation",
+    "vendor_address": "123 Business St, City, State 12345",
+    "customer_name": "Your Company",
+    "items": [
+      {
+        "description": "Professional Services",
+        "quantity": 10,
+        "unit_price": 125.00,
+        "total": 1250.00
+      }
+    ]
+  },
+  "confidence_scores": {
+    "invoice_number": 0.98,
+    "date": 0.95,
+    "total_amount": 0.99,
+    "vendor_name": 0.97
+  },
+  "processing_time": 2.3,
+  "similar_documents": [
+    {
+      "document_id": "INS123455",
+      "similarity_score": 0.89,
+      "document_type": "invoice",
+      "upload_date": "2024-01-10T15:30:00Z"
+    }
+  ]
+}
+```
+
+#### Get Document Details
+
+```http
+GET /api/v1/upload/{document_id}
+Authorization: Bearer <token>
+```
+
+### 3. AI Agent Queries
+
+<Info>
+De AI Agent accepteert natuurlijke taal queries en retourneert gestructureerde resultaten.
+</Info>
+
+#### Natural Language Query
+
+```http
+POST /api/v1/agent/query
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "query": "Toon alle facturen van ABC Corporation vorige maand",
+  "stream": false
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "query": "Toon alle facturen van ABC Corporation vorige maand",
+  "results": [
+    {
+      "document_id": "INS123456",
+      "document_type": "invoice",
+      "vendor_name": "ABC Corporation",
+      "date": "2024-01-15",
+      "total_amount": 1250.00,
+      "status": "paid"
+    },
+    {
+      "document_id": "INS123457",
+      "document_type": "invoice",
+      "vendor_name": "ABC Corporation",
+      "date": "2024-01-20",
+      "total_amount": 2500.00,
+      "status": "pending"
+    }
+  ],
+  "summary": {
+    "total_invoices": 2,
+    "total_amount": 3750.00,
+    "average_amount": 1875.00
+  },
+  "processing_time": 1.2
+}
+```
+
+#### Streaming Query
+
+Voor real-time responses, gebruik streaming:
+
+```http
+POST /api/v1/agent/query
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "query": "Analyseer uitgavenpatronen voor Q1",
+  "stream": true
+}
+```
+
+### 4. Graph Operations
+
+#### Get Vendor Relationships
+
+```http
+GET /api/v1/graph/vendors/{vendor_id}/relationships
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "vendor": {
+    "id": "vendor_123",
+    "name": "ABC Corporation",
+    "kvk_number": "12345678",
+    "risk_score": 0.15
+  },
+  "relationships": [
+    {
+      "type": "SIMILAR_TO",
+      "target_vendor": {
+        "id": "vendor_124",
+        "name": "ABC Corp Ltd",
+        "similarity_score": 0.92
+      }
+    },
+    {
+      "type": "SUPPLIES_TO",
+      "target_company": "Your Company",
+      "invoice_count": 45,
+      "total_value": 125000.00
+    }
+  ],
+  "fraud_signals": []
+}
+```
+
+#### Analyze Fraud Risk
+
+```http
+POST /api/v1/graph/fraud/analyze
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "vendor_id": "vendor_123",
+  "invoice_data": {
+    "amount": 25000.00,
+    "iban": "NL91ABNA0417164300"
+  }
+}
+```
+
+### 5. Journal Entry Prediction
+
+```http
+POST /api/v1/journal/predict
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "document_id": "INS123456",
+  "vendor_name": "ABC Corporation",
+  "total_amount": 1250.00,
+  "description": "Professional Services"
+}
+```
+
+**Response:**
+```json
+{
+  "prediction": {
+    "debit_account": "6100",
+    "credit_account": "2000",
+    "amount": 1250.00,
+    "description": "Professional Services - ABC Corporation",
+    "cost_center": "IT",
+    "project_code": "PROJ-2024-001"
+  },
+  "confidence": 0.95,
+  "similar_entries": [
+    {
+      "date": "2023-12-15",
+      "vendor": "ABC Corporation",
+      "amount": 1150.00,
+      "accounts": ["6100", "2000"]
+    }
+  ],
+  "accountview_format": {
+    "journal_entry": "...",
+    "export_ready": true
+  }
+}
+```
+
+## Error Handling
+
+<Warning>
+Alle API errors volgen een consistent format voor eenvoudige handling.
+</Warning>
+
+### Error Response Format
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input data",
+    "details": {
+      "field": "email",
+      "reason": "Invalid email format"
+    }
+  },
+  "status": 400,
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### Common Error Codes
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `UNAUTHORIZED` | 401 | Missing or invalid authentication |
+| `FORBIDDEN` | 403 | Insufficient permissions |
+| `NOT_FOUND` | 404 | Resource not found |
+| `VALIDATION_ERROR` | 400 | Invalid input data |
+| `RATE_LIMIT_EXCEEDED` | 429 | Too many requests |
+| `SERVER_ERROR` | 500 | Internal server error |
+
+## Rate Limiting
+
+<Info>
+API rate limits beschermen het systeem tegen overbelasting.
+</Info>
+
+- **Default limit**: 30 requests per minuut per IP
+- **Authenticated users**: 60 requests per minuut
+- **Enterprise**: Custom limits beschikbaar
+
+Headers in response:
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 45
+X-RateLimit-Reset: 1642345678
+```
+
+## Webhooks
+
+### Configure Webhook
+
+```http
+POST /api/v1/webhooks
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "url": "https://your-domain.com/webhook",
+  "events": ["document.processed", "fraud.detected"],
+  "secret": "your_webhook_secret"
+}
+```
+
+### Webhook Events
+
+<Tabs>
+  <Tab title="document.processed">
+    ```json
+    {
+      "event": "document.processed",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "data": {
+        "document_id": "INS123456",
+        "status": "success",
+        "extracted_fields": {...}
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="fraud.detected">
+    ```json
+    {
+      "event": "fraud.detected",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "data": {
+        "document_id": "INS123456",
+        "risk_score": 0.85,
+        "signals": ["duplicate_invoice", "iban_change"]
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## SDK & Client Libraries
+
+<CardGroup cols={3}>
+  <Card title="Python SDK" icon="python">
+    ```bash
+    pip install 3wm-sdk
+    ```
+  </Card>
+  
+  <Card title="JavaScript SDK" icon="js">
+    ```bash
+    npm install @3wm/sdk
+    ```
+  </Card>
+  
+  <Card title="REST Client" icon="code">
+    Use any HTTP client with our REST API
+  </Card>
+</CardGroup>
+
+## Testing
+
+<Card title="Postman Collection" icon="rocket">
+Download onze complete Postman collection voor eenvoudig testen:
+[Download Postman Collection](https://api.3wm.ai/postman-collection.json)
+</Card> 

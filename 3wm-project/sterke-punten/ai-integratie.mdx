@@ -1,0 +1,384 @@
+---
+title: "Geavanceerde AI Integratie"
+description: "State-of-the-art AI modellen en intelligente workflows"
+icon: "brain"
+---
+
+## AI als Kern van het Systeem
+
+Het 3WM AI Document Intelligence systeem plaatst kunstmatige intelligentie centraal in elke verwerkingsstap. Door de integratie van meerdere state-of-the-art AI modellen en frameworks wordt ongekende nauwkeurigheid en functionaliteit bereikt.
+
+## Multi-Model Architectuur
+
+### LLM Ecosystem
+
+<Card title="Intelligente Model Selectie" icon="robot">
+  Het systeem selecteert automatisch het optimale AI model voor elke taak:
+  
+  ```python
+  # Model routing based on task requirements
+  model_selection = {
+      "extraction": "gpt-4-turbo",      # Hoogste accuratesse
+      "classification": "claude-3",      # Snelle categorisatie
+      "translation": "gpt-3.5-turbo",   # Kosteneffectief
+      "embeddings": "text-embedding-3", # Semantische search
+      "vision": "gpt-4-vision"          # Document analyse
+  }
+  ```
+</Card>
+
+### Ondersteunde AI Providers
+
+<AccordionGroup>
+  <Accordion title="OpenAI Integration" icon="openai">
+    **Modellen:**
+    - GPT-4 Turbo voor complexe extractie
+    - GPT-4 Vision voor visuele document analyse
+    - Text-embedding-3 voor vector embeddings
+    - Whisper voor audio transcriptie
+    
+    **Optimalisaties:**
+    - Function calling voor gestructureerde output
+    - JSON mode voor betrouwbare parsing
+    - Streaming voor real-time responses
+    - Token optimization voor kostenbeheer
+  </Accordion>
+  
+  <Accordion title="Anthropic Claude" icon="robot">
+    **Modellen:**
+    - Claude 3 Opus voor complexe redenering
+    - Claude 3 Sonnet voor balans speed/kwaliteit
+    - Claude 3 Haiku voor snelle taken
+    
+    **Voordelen:**
+    - 200k token context window
+    - Superieure Nederlandse taalverwerking
+    - Ethische AI principes
+    - Lage hallucinatie rate
+  </Accordion>
+  
+  <Accordion title="Local Models" icon="microchip">
+    **On-Premise Opties:**
+    - Llama 3 voor privacy-gevoelige data
+    - Mistral voor Nederlandse specialisatie
+    - Custom fine-tuned modellen
+    
+    **Deployment:**
+    - GPU acceleratie met CUDA
+    - Quantization voor efficiency
+    - Model caching strategies
+  </Accordion>
+</AccordionGroup>
+
+## LangChain & LangGraph Integration
+
+### Intelligente Agent Architectuur
+
+<Card title="Stateful AI Workflows" icon="diagram-project">
+  ```mermaid
+  graph TD
+    A[User Query] --> B[Intent Analysis]
+    B --> C{Query Type}
+    C -->|Document Search| D[Vector Search]
+    C -->|Data Analysis| E[SQL Generation]
+    C -->|Vendor Intel| F[Graph Query]
+    
+    D --> G[Result Synthesis]
+    E --> G
+    F --> G
+    
+    G --> H[Response Generation]
+    H --> I[User Response]
+  ```
+</Card>
+
+### Agent Capabilities
+
+<Note>
+  De LangGraph agent kan complexe multi-step workflows uitvoeren met volledige context awareness en error recovery.
+</Note>
+
+#### Tool Integration
+
+```python
+# Agent tools configuratie
+tools = [
+    DocumentSearchTool(
+        description="Zoek documenten op basis van inhoud",
+        vector_store=supabase_vectors
+    ),
+    VendorAnalysisTool(
+        description="Analyseer leveranciers relaties",
+        graph_db=neo4j_client
+    ),
+    JournalPredictionTool(
+        description="Voorspel journaalposten",
+        ml_model=journal_predictor
+    ),
+    WebSearchTool(
+        description="Zoek actuele informatie online",
+        api_client=tavily_client
+    )
+]
+```
+
+## Document Understanding
+
+### Multimodal Processing
+
+<Steps>
+  <Step title="Visual Analysis">
+    GPT-4 Vision analyseert document layout en structuur
+  </Step>
+  
+  <Step title="Text Extraction">
+    OCR engines extraheren tekst met positie informatie
+  </Step>
+  
+  <Step title="Semantic Understanding">
+    LLMs begrijpen context en relaties tussen elementen
+  </Step>
+  
+  <Step title="Data Structuring">
+    Ongestructureerde data wordt getransformeerd naar schema
+  </Step>
+</Steps>
+
+### Nederlandse Taal Expertise
+
+Het systeem excelleert in Nederlandse documentverwerking:
+
+<CardGroup cols={2}>
+  <Card title="Terminologie" icon="language">
+    Begrip van Nederlandse business termen en afkortingen
+  </Card>
+  
+  <Card title="Formats" icon="file-lines">
+    Herkenning van Nederlandse document conventies
+  </Card>
+  
+  <Card title="Regelgeving" icon="gavel">
+    Kennis van Nederlandse wet- en regelgeving
+  </Card>
+  
+  <Card title="Dialecten" icon="comments">
+    Ondersteuning voor Vlaams en regionaal taalgebruik
+  </Card>
+</CardGroup>
+
+## Intelligente Data Extractie
+
+### Context-Aware Field Extraction
+
+```python
+# Voorbeeld van intelligente extractie met context
+async def extract_invoice_data(text: str, image: bytes):
+    # Multi-modal analyse
+    visual_context = await analyze_layout(image)
+    
+    # Prompt engineering voor Nederlandse context
+    prompt = f"""
+    Analyseer deze Nederlandse factuur en extraheer:
+    - Leverancier details (inclusief KVK/BTW nummer)
+    - Factuurgegevens (nummer, datum, vervaldatum)
+    - Regelitems met Nederlandse BTW tarieven (21%, 9%, 0%)
+    - Totaalbedragen (excl. BTW, BTW bedrag, incl. BTW)
+    
+    Context: {visual_context}
+    Tekst: {text}
+    
+    Retourneer als JSON met Nederlandse veldnamen.
+    """
+    
+    response = await llm.invoke(prompt, response_format="json")
+    return validate_and_enrich(response)
+```
+
+### Confidence Scoring
+
+<Note>
+  Elk geëxtraheerd veld krijgt een confidence score, waardoor gebruikers weten wanneer menselijke verificatie nodig is.
+</Note>
+
+#### Confidence Levels
+
+| Score | Betekenis | Actie |
+|-------|-----------|-------|
+| > 0.95 | Zeer zeker | Automatisch goedkeuren |
+| 0.80-0.95 | Waarschijnlijk correct | Flaggen voor spot check |
+| 0.60-0.80 | Onzeker | Menselijke review vereist |
+| < 0.60 | Onbetrouwbaar | Handmatige invoer nodig |
+
+## Fraud Detection AI
+
+### Pattern Recognition
+
+<Card title="Anomalie Detectie" icon="shield-exclamation">
+  Het systeem gebruikt ensemble learning voor fraudedetectie:
+  
+  1. **Statistical Analysis**: Afwijkingen van normale patronen
+  2. **Graph Neural Networks**: Ongebruikelijke relaties
+  3. **Sequence Models**: Temporele anomalieën
+  4. **Rule Engine**: Business rule violations
+</Card>
+
+### Fraud Indicators
+
+<AccordionGroup>
+  <Accordion title="Document Anomalies" icon="file-circle-exclamation">
+    - Inconsistente formatting
+    - Ongebruikelijke fonts of layouts
+    - Digitale manipulatie signalen
+    - Template afwijkingen
+  </Accordion>
+  
+  <Accordion title="Data Anomalies" icon="chart-line">
+    - Bedragen buiten normale range
+    - Onrealistische datums
+    - Inconsistente berekeningen
+    - Verdachte round numbers
+  </Accordion>
+  
+  <Accordion title="Behavioral Anomalies" icon="user-secret">
+    - Nieuwe leverancier met hoog bedrag
+    - Plotselinge frequentie verandering
+    - Afwijkende betaalgegevens
+    - Weekend/nacht submissions
+  </Accordion>
+</AccordionGroup>
+
+## Natural Language Interface
+
+### Conversational AI
+
+Gebruikers communiceren in natuurlijk Nederlands:
+
+```
+Gebruiker: "Hoeveel hebben we dit kwartaal uitgegeven aan IT leveranciers?"
+
+AI: "In Q3 2024 heeft uw organisatie €127,450 uitgegeven aan IT leveranciers, 
+verdeeld over 8 verschillende bedrijven. Dit is een stijging van 23% 
+ten opzichte van Q2. De grootste uitgaven waren:
+
+1. TechCorp BV: €45,200 (35.5%)
+2. Software Solutions: €31,100 (24.4%)
+3. Cloud Services NL: €22,750 (17.9%)
+
+Wilt u een gedetailleerd overzicht of specifieke facturen inzien?"
+```
+
+### Query Understanding
+
+<Steps>
+  <Step title="Intent Recognition">
+    Bepalen wat de gebruiker wil bereiken
+  </Step>
+  
+  <Step title="Entity Extraction">
+    Identificeren van relevante entiteiten (bedrijven, data, bedragen)
+  </Step>
+  
+  <Step title="Context Resolution">
+    Disambiguatie op basis van conversatie historie
+  </Step>
+  
+  <Step title="Action Planning">
+    Bepalen welke tools en queries nodig zijn
+  </Step>
+</Steps>
+
+## Continuous Learning
+
+### Model Improvement
+
+<Card title="Feedback Loop" icon="arrows-rotate">
+  Het systeem leert continu van gebruikersinteracties:
+  
+  ```python
+  # Feedback collection
+  @app.post("/api/v1/feedback")
+  async def collect_feedback(
+      document_id: str,
+      corrections: Dict[str, Any],
+      user_id: str
+  ):
+      # Store corrections for model improvement
+      await feedback_store.save(document_id, corrections)
+      
+      # Retrain extraction patterns
+      if len(feedback_store) > RETRAIN_THRESHOLD:
+          await trigger_model_update()
+  ```
+</Card>
+
+### Performance Metrics
+
+| Metric | Baseline | Na 1 Maand | Na 6 Maanden |
+|--------|----------|------------|--------------|
+| Extractie Accuratesse | 92% | 95% | 98% |
+| Nederlandse Terms | 88% | 94% | 97% |
+| Fraud Detection | 85% | 91% | 96% |
+| Query Understanding | 90% | 93% | 97% |
+
+## AI Governance
+
+### Responsible AI Practices
+
+<AccordionGroup>
+  <Accordion title="Transparency" icon="eye">
+    - Explainable AI decisions
+    - Confidence scores voor alle outputs
+    - Audit trails van AI reasoning
+    - Model versioning en tracking
+  </Accordion>
+  
+  <Accordion title="Privacy" icon="lock">
+    - On-premise model opties
+    - Data anonymisatie technieken
+    - GDPR-compliant processing
+    - Geen training op klantdata
+  </Accordion>
+  
+  <Accordion title="Bias Mitigation" icon="balance-scale">
+    - Diverse training datasets
+    - Regular bias testing
+    - Fair lending compliance
+    - Inclusive language models
+  </Accordion>
+</AccordionGroup>
+
+## Toekomstige AI Features
+
+### Roadmap
+
+<CardGroup cols={2}>
+  <Card title="Voice Interface" icon="microphone">
+    Nederlandse spraakherkenning voor hands-free operatie
+  </Card>
+  
+  <Card title="Predictive Analytics" icon="chart-line">
+    Voorspellen van cashflow en uitgavenpatronen
+  </Card>
+  
+  <Card title="Auto-negotiation" icon="handshake">
+    AI-gestuurde contract onderhandelingen
+  </Card>
+  
+  <Card title="Compliance AI" icon="shield-check">
+    Automatische compliance checking en rapportage
+  </Card>
+</CardGroup>
+
+## Conclusie
+
+De geavanceerde AI integratie maakt 3WM tot meer dan een document processing systeem - het is een intelligente business partner die:
+
+- **Begrijpt**: Nederlandse business context en nuances
+- **Leert**: Van elke interactie voor betere resultaten
+- **Beschermt**: Tegen fraude en fouten
+- **Assisteert**: Met natuurlijke taal interactie
+- **Schaalt**: Mee met groeiende complexiteit
+
+<Card title="Start met 3WM" icon="rocket" href="/3wm-project/getting-started/quickstart">
+  Ervaar de kracht van AI-gedreven document intelligence vandaag nog
+</Card> 

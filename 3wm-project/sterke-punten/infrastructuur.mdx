@@ -1,0 +1,380 @@
+---
+title: "Productie-Gereed Infrastructuur"
+description: "Robuuste technische fundatie voor enterprise deployment"
+icon: "industry"
+---
+
+## Enterprise-Grade Infrastructuur
+
+Het 3WM AI Document Intelligence systeem is vanaf de grond opgebouwd met productie-eisen in gedachten. De infrastructuur combineert betrouwbaarheid, schaalbaarheid en beveiliging om een solide fundament te bieden voor kritische bedrijfsprocessen.
+
+## Container-Gebaseerde Architectuur
+
+### Docker Deployment
+
+<Card title="Container Strategie" icon="docker">
+  Het systeem gebruikt een multi-container architectuur voor optimale isolatie en schaalbaarheid:
+  
+  ```yaml
+  # Productie containers
+  - API Server: FastAPI applicatie
+  - Worker: Achtergrond taken verwerking
+  - Scheduler: Geplande taken uitvoering
+  - Database: PostgreSQL voor gebruikersdata
+  - Cache: Redis voor sessies en caching
+  - Monitoring: Prometheus metrics collector
+  ```
+</Card>
+
+### Orchestratie met Docker Compose
+
+<CodeGroup>
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    scale: 3  # Horizontale schaling
+    environment:
+      - ENVIRONMENT=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+```dockerfile Dockerfile
+FROM python:3.11-slim
+
+# Security: Non-root user
+RUN useradd -m appuser
+
+# Optimized layers
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Application
+COPY --chown=appuser:appuser . /app
+USER appuser
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0"]
+```
+</CodeGroup>
+
+## Monitoring & Observability
+
+### 1. Prometheus Metrics
+
+Het systeem exporteert uitgebreide metrics:
+
+<AccordionGroup>
+  <Accordion title="API Metrics" icon="chart-line">
+    - Request latency per endpoint
+    - Response status codes
+    - Concurrent requests
+    - Request size distribution
+    - Error rates per endpoint
+  </Accordion>
+  
+  <Accordion title="Business Metrics" icon="briefcase">
+    - Documents processed per hour
+    - OCR success rate
+    - AI extraction accuracy
+    - Fraud detections triggered
+    - Email processing statistics
+  </Accordion>
+  
+  <Accordion title="System Metrics" icon="server">
+    - CPU en memory usage
+    - Database connection pool
+    - Redis cache hit rate
+    - Disk I/O patterns
+    - Network throughput
+  </Accordion>
+</AccordionGroup>
+
+### 2. Gestructureerd Logging
+
+<Note>
+  Alle logs worden gestructureerd in JSON formaat met context-aware informatie voor eenvoudige analyse en troubleshooting.
+</Note>
+
+#### Log Structuur
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "INFO",
+  "request_id": "req-123-abc",
+  "user_id": "user-456",
+  "endpoint": "/api/v1/upload",
+  "duration_ms": 234,
+  "message": "Document processed successfully",
+  "metadata": {
+    "document_id": "INS789",
+    "document_type": "invoice",
+    "extraction_confidence": 0.98
+  }
+}
+```
+
+### 3. Grafana Dashboards
+
+Pre-configured dashboards voor:
+
+<CardGroup cols={2}>
+  <Card title="API Performance" icon="gauge">
+    Real-time monitoring van response times en throughput
+  </Card>
+  
+  <Card title="Document Pipeline" icon="pipe-section">
+    Visuele weergave van verwerkingsstatus per fase
+  </Card>
+  
+  <Card title="Error Analysis" icon="triangle-exclamation">
+    Gedetailleerde error tracking met stack traces
+  </Card>
+  
+  <Card title="Business KPIs" icon="chart-mixed">
+    Documenten verwerkt, kosten bespaard, efficiency metrics
+  </Card>
+</CardGroup>
+
+## Beveiliging & Compliance
+
+### 1. Authentication & Authorization
+
+#### JWT Token Management
+
+```python
+# Veilige token generatie met sterke encryptie
+{
+  "sub": "user-123",
+  "exp": 1234567890,
+  "iat": 1234567890,
+  "permissions": ["read", "write", "admin"],
+  "session_id": "sess-abc-123"
+}
+```
+
+#### Multi-Factor Authentication
+
+<Steps>
+  <Step title="Wachtwoord Verificatie">
+    Bcrypt hashing met salt rounds
+  </Step>
+  
+  <Step title="2FA Token">
+    TOTP of SMS verificatie
+  </Step>
+  
+  <Step title="Session Management">
+    Secure session tokens met expiry
+  </Step>
+</Steps>
+
+### 2. Data Encryptie
+
+<AccordionGroup>
+  <Accordion title="In Transit" icon="lock">
+    - TLS 1.3 voor alle API communicatie
+    - Certificate pinning voor mobile apps
+    - End-to-end encryptie voor gevoelige data
+  </Accordion>
+  
+  <Accordion title="At Rest" icon="database">
+    - Database encryptie met AES-256
+    - Encrypted file storage in Supabase
+    - Key rotation policies
+  </Accordion>
+  
+  <Accordion title="In Processing" icon="microchip">
+    - Memory encryption voor gevoelige operaties
+    - Secure enclaves voor key management
+    - Hardware security module integratie
+  </Accordion>
+</AccordionGroup>
+
+### 3. GDPR Compliance
+
+Het systeem is ontworpen met privacy-by-design:
+
+- **Data Minimalisatie**: Alleen noodzakelijke data opslaan
+- **Right to Erasure**: Automatische data cleanup
+- **Audit Logging**: Complete audit trail
+- **Consent Management**: Expliciete toestemming tracking
+- **Data Portability**: Export in standaard formaten
+
+## High Availability & Disaster Recovery
+
+### 1. Redundantie Strategie
+
+<Card title="Multi-Zone Deployment" icon="globe">
+  ```mermaid
+  graph LR
+    LB[Load Balancer] --> AZ1[Zone 1: API Servers]
+    LB --> AZ2[Zone 2: API Servers]
+    AZ1 --> DB1[(Primary DB)]
+    AZ2 --> DB2[(Replica DB)]
+    DB1 -.->|Replication| DB2
+  ```
+</Card>
+
+### 2. Backup & Recovery
+
+#### Automated Backups
+
+- **Database**: Dagelijkse incrementele, wekelijkse full backups
+- **File Storage**: Real-time replicatie naar meerdere regions
+- **Configuration**: Version controlled in Git
+- **Retention**: 30 dagen standaard, configureerbaar
+
+#### Recovery Procedures
+
+<Note>
+  RTO (Recovery Time Objective): < 1 uur
+  RPO (Recovery Point Objective): < 15 minuten
+</Note>
+
+### 3. Failover Mechanismen
+
+- **Database Failover**: Automatische primary election
+- **API Failover**: Health check based routing
+- **Cache Failover**: Redis Sentinel configuratie
+- **Storage Failover**: Multi-region replicatie
+
+## Performance Optimalisatie
+
+### 1. Caching Strategie
+
+<Tabs>
+  <Tab title="Redis Cache">
+    ```python
+    # Multi-level caching
+    - Session cache: 30 minuten TTL
+    - OCR results: 24 uur TTL
+    - API responses: 5 minuten TTL
+    - Static assets: 7 dagen TTL
+    ```
+  </Tab>
+  
+  <Tab title="CDN Integration">
+    ```yaml
+    # CloudFlare configuratie
+    - Static files: Edge caching
+    - API responses: Smart caching
+    - Geographic distribution
+    - DDoS protection
+    ```
+  </Tab>
+</Tabs>
+
+### 2. Database Optimalisatie
+
+#### Query Performance
+
+- **Indexes**: Strategisch geplaatste indexes
+- **Partitioning**: Tijdgebaseerde partities
+- **Connection Pooling**: Optimale pool sizing
+- **Query Optimization**: Explain analyze voor alle queries
+
+#### Scaling Strategie
+
+```sql
+-- Read replicas voor load distribution
+-- Partitioning voor grote tabellen
+CREATE TABLE documents_2024_q1 PARTITION OF documents
+FOR VALUES FROM ('2024-01-01') TO ('2024-04-01');
+```
+
+### 3. Asynchrone Verwerking
+
+<Card title="Queue-Based Architecture" icon="bars-progress">
+  Zware taken worden asynchroon verwerkt:
+  
+  - Document OCR processing
+  - AI extraction tasks  
+  - Email batch processing
+  - Report generation
+  - Neo4j graph updates
+</Card>
+
+## DevOps & CI/CD
+
+### 1. Automated Testing
+
+```yaml
+# Test pipeline
+- Unit tests: 95% coverage
+- Integration tests: API endpoints
+- Performance tests: Load testing
+- Security tests: OWASP scanning
+- E2E tests: Critical user flows
+```
+
+### 2. Deployment Pipeline
+
+<Steps>
+  <Step title="Code Commit">
+    Automated linting en security scanning
+  </Step>
+  
+  <Step title="Build & Test">
+    Docker build met multi-stage optimization
+  </Step>
+  
+  <Step title="Staging Deploy">
+    Automated deployment naar staging
+  </Step>
+  
+  <Step title="Production Release">
+    Blue-green deployment met rollback
+  </Step>
+</Steps>
+
+### 3. Infrastructure as Code
+
+```terraform
+# Terraform configuratie voor cloud resources
+resource "aws_ecs_service" "api" {
+  name            = "3wm-api"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.api.arn
+  desired_count   = var.api_instance_count
+  
+  deployment_configuration {
+    maximum_percent         = 200
+    minimum_healthy_percent = 100
+  }
+}
+```
+
+## Kostenbeheer
+
+### Resource Optimization
+
+<CardGroup cols={2}>
+  <Card title="Auto-scaling" icon="arrows-up-down">
+    Dynamisch schalen op basis van load
+  </Card>
+  
+  <Card title="Spot Instances" icon="tag">
+    Gebruik van spot instances voor workers
+  </Card>
+  
+  <Card title="Reserved Capacity" icon="calendar">
+    Reserved instances voor baseline load
+  </Card>
+  
+  <Card title="Cost Alerts" icon="bell">
+    Proactieve waarschuwingen bij overschrijding
+  </Card>
+</CardGroup>
+
+## Volgende Stappen
+
+<Card title="Ontdek Schaalbaarheid" icon="expand" href="/3wm-project/sterke-punten/schaalbaarheid">
+  Leer hoe de infrastructuur moeiteloos meeschaalt met uw groei
+</Card> 

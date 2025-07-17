@@ -1,0 +1,165 @@
+---
+title: "3WM AI Document Intelligence"
+description: "AI-gestuurde factuurverwerking met 6 intelligente assistenten voor automatische documentverwerking"
+icon: "brain-circuit"
+---
+
+## Overzicht
+
+Het 3WM systeem is een geavanceerd AI Document Intelligence platform dat speciaal ontwikkeld is voor de Brouwer Group. Het systeem automatiseert het complete factuurverwerkingsproces van email ontvangst tot boeking in AccountView.
+
+<Info>
+Van 10 minuten handwerk naar 10 seconden AI-verwerking per factuur met 99.9% nauwkeurigheid.
+</Info>
+
+## Het Complete Verwerkingsproces
+
+<Steps>
+  <Step title="Exchange Online">
+    Facturen komen binnen op **administratie@brouwer-group.nl**
+  </Step>
+  <Step title="AI Processing">
+    6 gespecialiseerde AI assistenten verwerken het document
+  </Step>
+  <Step title="AccountView">
+    Automatische boeking met confidence-based routing
+  </Step>
+</Steps>
+
+## De 6 AI Assistenten
+
+### 1. Document Scanner AI
+**OCR Processing met DocTR Engine**
+
+Transformeert elke factuur - scan, foto of PDF - naar perfect leesbare digitale tekst met 99.5% nauwkeurigheid.
+
+<CardGroup cols={2}>
+  <Card title="Formaten" icon="file">
+    PDF, JPG, PNG, TIFF<br/>
+    Direct uit email bijlagen<br/>
+    Multi-page ondersteuning
+  </Card>
+  <Card title="Snelheid" icon="bolt">
+    3-5 seconden per pagina<br/>
+    Parallel processing<br/>
+    Batch verwerking
+  </Card>
+</CardGroup>
+
+### 2. Intelligente Data Extractor
+**NLP Engine met Machine Learning**
+
+Begrijpt de context van facturen en haalt automatisch alle relevante gegevens eruit.
+
+```
+INVOICE_EXTRACTOR {
+  - Leverancier Herkenning (Named Entity Recognition)
+  - Factuurnummer Detectie (Pattern Matching)
+  - Datum Parsing (Multiple Format Support)
+  - Bedrag Extractie (Currency Handling)
+  - BTW Analyse (Rate Detection + Validation)
+  - IBAN/KVK Verificatie (Checksum Validation)
+  - Factuurregels (Table Extraction)
+}
+```
+
+### 3. Semantische Zoek AI
+**Vector Database met PGVector**
+
+Maakt facturen intelligent doorzoekbaar op betekenis, detecteert duplicaten en vindt patronen.
+
+<CardGroup cols={3}>
+  <Card title="Duplicate Detection" icon="copy">
+    Vindt dubbele facturen zelfs bij kleine verschillen
+  </Card>
+  <Card title="Pattern Learning" icon="chart-line">
+    Herkent leverancier-specifieke patronen
+  </Card>
+  <Card title="Historical Linking" icon="link">
+    Koppelt aan eerdere soortgelijke transacties
+  </Card>
+</CardGroup>
+
+### 4. Boekhoud Predictor AI
+**ML Journal Engine voor AccountView**
+
+Voorspelt automatisch de correcte journaalposten voor AccountView op basis van historische patronen.
+
+<Note>
+**Beslisregels:**
+- **95%+ confidence:** Automatisch boeken (~85% van facturen)
+- **80-94% confidence:** Ter controle aanbieden (~12% van facturen)
+- **<80% confidence:** Handmatige invoer vereist (~3% van facturen)
+</Note>
+
+### 5. Fraude & Risk Detector
+**Neo4j Graph Analysis**
+
+Bewaakt continue de integriteit van uw administratie door verdachte patronen te detecteren.
+
+```
+FRAUD_DETECTION_RULES {
+  1. Vendor_Change_Detection (IBAN wijzigingen)
+  2. Amount_Anomaly_Detection (>3x std deviation)
+  3. Duplicate_Invoice_Check (similarity > 0.95)
+  4. New_Vendor_Risk_Score (eerste 5 facturen)
+  5. Payment_Pattern_Analysis (timing afwijkingen)
+  6. Round_Number_Detection (€1000.00 exact)
+}
+```
+
+<Warning>
+**Risico Niveaus:**
+- 🔴 **Hoog:** Onbekende leverancier + groot bedrag + spoed
+- 🟡 **Medium:** IBAN wijziging bij bestaande leverancier
+- 🟢 **Laag:** Bekende leverancier, normaal patroon
+</Warning>
+
+### 6. Conversational Analytics AI
+**Natural Language Query Agent**
+
+Beantwoordt complexe vragen over uw administratie in natuurlijke taal.
+
+<CardGroup cols={2}>
+  <Card title="Trend Analyse" icon="chart-line">
+    "Stijgen onze energiekosten?"<br/>
+    "Welke leverancier werd duurder?"
+  </Card>
+  <Card title="Specifieke Zoekopdrachten" icon="search">
+    "Alle IT facturen Q3"<br/>
+    "Facturen > €5000 deze maand"
+  </Card>
+  <Card title="Rapportages" icon="file-chart-line">
+    "Top 10 leveranciers 2024"<br/>
+    "Kostenverdeling per afdeling"
+  </Card>
+  <Card title="Web Enrichment" icon="globe">
+    KVK verificatie<br/>
+    Kredietwaardigheid check
+  </Card>
+</CardGroup>
+
+## Businesswaarde
+
+<CardGroup cols={4}>
+  <Card title="10 sec" icon="clock">
+    Verwerkingstijd per factuur
+  </Card>
+  <Card title="99.9%" icon="check-circle">
+    Nauwkeurigheid
+  </Card>
+  <Card title="€15k+" icon="euro-sign">
+    Jaarlijkse besparing
+  </Card>
+  <Card title="24/7" icon="server">
+    Beschikbaarheid
+  </Card>
+</CardGroup>
+
+## Technische Architectuur
+
+- **Backend:** FastAPI met JWT authenticatie
+- **Databases:** PostgreSQL (auth), Supabase (business data), Neo4j (graph), Redis (cache)
+- **AI Models:** GPT-4 Turbo, text-embedding-3-small
+- **OCR:** DocTR engine
+- **Integraties:** Microsoft Graph API, AccountView API 

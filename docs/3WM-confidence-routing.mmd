@@ -1,0 +1,9 @@
+graph TD
+    A[Factuur Verwerkt] --> B{Confidence Score}
+    B -->|95-100%| C[✅ Automatisch Boeken<br/>~85% van facturen]
+    B -->|80-94%| D[⚠️ Menselijke Controle<br/>~12% van facturen]
+    B -->|<80%| E[🔴 Handmatig Invoeren<br/>~3% van facturen]
+ 
+    style C fill:#e8f5e9
+    style D fill:#fff3e0
+    style E fill:#ffebee 
