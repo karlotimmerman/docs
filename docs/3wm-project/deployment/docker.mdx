@@ -261,3 +261,423 @@ HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1
 # Start command
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ``` 
+
+## Environment Configuration
+
+### Development Environment
+
+```bash
+# .env.development
+APP_ENV=development
+DEBUG=true
+
+# Database
+POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/3wm_dev
+REDIS_URL=redis://:redis@localhost:6379/0
+
+# AI Services
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+
+# Authentication
+JWT_SECRET=dev-secret-change-in-production
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# External Services
+MICROSOFT_CLIENT_ID=...
+MICROSOFT_CLIENT_SECRET=...
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_KEY=...
+
+# Monitoring
+PROMETHEUS_ENABLED=true
+GRAFANA_PASSWORD=admin
+```
+
+### Production Environment
+
+```bash
+# .env.production
+APP_ENV=production
+DEBUG=false
+
+# Use strong passwords and secrets
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
+REDIS_PASSWORD=$(openssl rand -base64 32)
+JWT_SECRET=$(openssl rand -base64 64)
+
+# Production URLs
+API_URL=https://api.3wm.yourdomain.com
+FRONTEND_URL=https://app.3wm.yourdomain.com
+```
+
+## Makefile Commands
+
+```makefile
+# Development commands
+dev:
+	docker-compose -f docker-compose.yml up -d
+
+dev-logs:
+	docker-compose -f docker-compose.yml logs -f
+
+dev-down:
+	docker-compose -f docker-compose.yml down
+
+# Production commands
+prod:
+	docker-compose -f docker-compose.prod.yml up -d
+
+prod-build:
+	docker-compose -f docker-compose.prod.yml build --no-cache
+
+# Database commands
+db-migrate:
+	docker-compose exec api alembic upgrade head
+
+db-backup:
+	docker-compose exec postgres pg_dump -U postgres 3wm > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Monitoring
+monitor:
+	open http://localhost:3000  # Grafana
+	open http://localhost:9090  # Prometheus
+
+# Cleanup
+clean:
+	docker-compose down -v
+	docker system prune -f
+```
+
+## Nginx Configuration
+
+### nginx/nginx.conf
+
+```nginx
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream api {
+        server api:8000;
+    }
+
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        # API proxy
+        location /api {
+            limit_req zone=api_limit burst=20 nodelay;
+            
+            proxy_pass http://api;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # WebSocket support
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+
+        # Health check endpoint
+        location /health {
+            proxy_pass http://api/health;
+            access_log off;
+        }
+
+        # Metrics endpoint (internal only)
+        location /metrics {
+            allow 172.16.0.0/12;  # Docker network
+            deny all;
+            proxy_pass http://api/metrics;
+        }
+    }
+}
+```
+
+## Monitoring Setup
+
+### Prometheus Configuration
+
+```yaml
+# prometheus/prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: '3wm-api'
+    static_configs:
+      - targets: ['api:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+```
+
+### Grafana Dashboard
+
+```json
+{
+  "dashboard": {
+    "title": "3WM Monitoring",
+    "panels": [
+      {
+        "title": "API Request Rate",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])"
+          }
+        ]
+      },
+      {
+        "title": "Invoice Processing Time",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, invoice_processing_duration_seconds)"
+          }
+        ]
+      },
+      {
+        "title": "LLM Token Usage",
+        "targets": [
+          {
+            "expr": "sum(rate(llm_tokens_used_total[5m])) by (model)"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Production Deployment
+
+### SSL/TLS Setup
+
+```bash
+# Generate self-signed certificate for development
+mkdir -p nginx/ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout nginx/ssl/key.pem \
+  -out nginx/ssl/cert.pem \
+  -subj "/C=NL/ST=State/L=City/O=Organization/CN=localhost"
+
+# For production, use Let's Encrypt
+docker run -it --rm \
+  -v /etc/letsencrypt:/etc/letsencrypt \
+  -v /var/lib/letsencrypt:/var/lib/letsencrypt \
+  certbot/certbot certonly --standalone \
+  -d api.3wm.yourdomain.com
+```
+
+### docker-compose.prod.yml
+
+```yaml
+version: '3.8'
+
+services:
+  api:
+    image: 3wm-api:${VERSION:-latest}
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    environment:
+      - APP_ENV=production
+      - WORKERS=4
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: supabase/postgres:15.1.0.117
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_backup:/backup
+    environment:
+      - POSTGRES_REPLICATION_MODE=master
+      - POSTGRES_REPLICATION_USER=replicator
+      - POSTGRES_REPLICATION_PASSWORD=${REPLICATION_PASSWORD}
+
+  postgres-replica:
+    image: supabase/postgres:15.1.0.117
+    deploy:
+      replicas: 2
+    environment:
+      - POSTGRES_REPLICATION_MODE=slave
+      - POSTGRES_MASTER_HOST=postgres
+      - POSTGRES_REPLICATION_USER=replicator
+      - POSTGRES_REPLICATION_PASSWORD=${REPLICATION_PASSWORD}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Container won't start">
+    **Symptomen**: Container exits immediately
+    
+    **Oplossingen**:
+    ```bash
+    # Check logs
+    docker-compose logs api
+    
+    # Check environment variables
+    docker-compose config
+    
+    # Rebuild image
+    docker-compose build --no-cache api
+    ```
+  </Accordion>
+  
+  <Accordion title="Database connection errors">
+    **Symptomen**: "connection refused" errors
+    
+    **Oplossingen**:
+    ```bash
+    # Check if postgres is running
+    docker-compose ps postgres
+    
+    # Test connection
+    docker-compose exec postgres psql -U postgres -c "SELECT 1"
+    
+    # Check network
+    docker network inspect 3wm_3wm-network
+    ```
+  </Accordion>
+  
+  <Accordion title="Permission errors">
+    **Symptomen**: "Permission denied" in logs
+    
+    **Oplossingen**:
+    ```bash
+    # Fix volume permissions
+    sudo chown -R 1000:1000 ./uploads ./logs
+    
+    # Or run as root (development only)
+    docker-compose exec -u root api bash
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Multi-Stage Builds">
+    Reduce image size and improve security by using multi-stage Docker builds
+  </Step>
+  
+  <Step title="Pin Versions">
+    Always use specific version tags instead of 'latest' in production
+  </Step>
+  
+  <Step title="Health Checks">
+    Implement health checks for all services to ensure proper orchestration
+  </Step>
+  
+  <Step title="Resource Limits">
+    Set CPU and memory limits to prevent resource exhaustion
+  </Step>
+  
+  <Step title="Logging Strategy">
+    Use structured logging and centralized log collection
+  </Step>
+  
+  <Step title="Security Scanning">
+    Regularly scan images for vulnerabilities with tools like Trivy
+  </Step>
+</Steps>
+
+## Maintenance
+
+### Regular Tasks
+
+```bash
+# Weekly: Update base images
+docker pull python:3.13-slim
+docker pull postgres:15-alpine
+docker pull redis:7-alpine
+
+# Monthly: Clean up unused resources
+docker system prune -a --volumes
+
+# Quarterly: Review and update dependencies
+docker-compose exec api pip list --outdated
+```
+
+### Backup Procedures
+
+```bash
+#!/bin/bash
+# backup.sh
+
+# Database backup
+docker-compose exec -T postgres pg_dumpall -U postgres | gzip > backup_$(date +%Y%m%d).sql.gz
+
+# Upload files backup
+tar -czf uploads_$(date +%Y%m%d).tar.gz ./uploads
+
+# Configuration backup
+tar -czf config_$(date +%Y%m%d).tar.gz .env* docker-compose*.yml nginx/
+
+# Upload to S3 or other storage
+aws s3 cp backup_$(date +%Y%m%d).sql.gz s3://3wm-backups/
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Kubernetes Migration" icon="dharmachakra" href="/docs/3wm-project/deployment/kubernetes">
+    Scale verder met Kubernetes
+  </Card>
+  
+  <Card title="Production Checklist" icon="list-check" href="/docs/3wm-project/deployment/production">
+    Production deployment guide
+  </Card>
+  
+  <Card title="Monitoring Setup" icon="chart-line" href="/docs/3wm-project/deployment/monitoring">
+    Configureer monitoring stack
+  </Card>
+  
+  <Card title="Security Hardening" icon="shield" href="/docs/3wm-project/guides/security">
+    Security best practices
+  </Card>
+</CardGroup> 

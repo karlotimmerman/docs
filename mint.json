@@ -15,15 +15,10 @@
       "to": "#1E293B"
     }
   },
-  "topbarLinks": [
-    {
-      "name": "Support",
-      "url": "mailto:support@skydust.ai"
-    }
-  ],
+  "topbarLinks": [],
   "topbarCtaButton": {
-    "name": "Dashboard",
-    "url": "https://app.skydust.ai"
+    "name": "Applicatie (komt binnenkort)",
+    "url": "#"
   },
   "tabs": [
     {
@@ -97,7 +92,7 @@
   ],
   "footerSocials": {
     "x": "https://x.com/skydustio",
-    "github": "https://github.com/sky-dust-intelligence",
+    "github": "https://github.com/sky-dust-intelligence/3WM-BROUWER",
     "linkedin": "https://www.linkedin.com/company/skydust"
   },
   "backgroundImage": "/images/background.png",
