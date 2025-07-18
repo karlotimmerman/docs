@@ -1,0 +1,535 @@
+---
+title: 'Monitoring & Observability'
+description: 'Monitor and observe your 3WM deployment'
+icon: 'chart-line'
+---
+
+# Monitoring & Observability
+
+Comprehensive monitoring setup for the 3WM AI Document Intelligence system by Sky Dust.
+
+## Overview
+
+3WM includes built-in monitoring with:
+- **Prometheus** for metrics collection
+- **Grafana** for visualization
+- **Loki** for log aggregation
+- **Jaeger** for distributed tracing
+
+## Quick Start
+
+Enable monitoring in your deployment:
+
+```yaml
+# docker-compose.monitoring.yml
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./monitoring/grafana:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+
+volumes:
+  prometheus_data:
+  grafana_data:
+```
+
+## Metrics
+
+### Application Metrics
+
+Key metrics exposed by 3WM:
+
+```python
+# Document processing metrics
+document_upload_total
+document_processing_duration_seconds
+document_processing_errors_total
+document_size_bytes
+
+# OCR metrics
+ocr_processing_duration_seconds
+ocr_accuracy_score
+ocr_page_count
+
+# AI Agent metrics
+agent_query_duration_seconds
+agent_query_tokens_used
+agent_error_rate
+
+# API metrics
+http_requests_total
+http_request_duration_seconds
+http_request_size_bytes
+http_response_size_bytes
+```
+
+### System Metrics
+
+Monitor system resources:
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: '3wm-api'
+    static_configs:
+      - targets: ['api:8000']
+    
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+  
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+```
+
+## Dashboards
+
+### Pre-built Dashboards
+
+Import these Grafana dashboards:
+
+<CodeGroup>
+```json Overview Dashboard
+{
+  "dashboard": {
+    "title": "3WM Overview",
+    "panels": [
+      {
+        "title": "Documents Processed",
+        "targets": [
+          {
+            "expr": "rate(document_upload_total[5m])"
+          }
+        ]
+      },
+      {
+        "title": "Processing Time",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, document_processing_duration_seconds)"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "targets": [
+          {
+            "expr": "rate(document_processing_errors_total[5m])"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+```json Performance Dashboard
+{
+  "dashboard": {
+    "title": "3WM Performance",
+    "panels": [
+      {
+        "title": "API Response Time",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, http_request_duration_seconds)"
+          }
+        ]
+      },
+      {
+        "title": "Database Query Time",
+        "targets": [
+          {
+            "expr": "pg_stat_statements_mean_time_seconds"
+          }
+        ]
+      },
+      {
+        "title": "Cache Hit Rate",
+        "targets": [
+          {
+            "expr": "redis_keyspace_hits / (redis_keyspace_hits + redis_keyspace_misses)"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+</CodeGroup>
+
+## Logging
+
+### Log Configuration
+
+Configure structured logging:
+
+```python
+# logging_config.py
+LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "class": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s"
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json"
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "/logs/3wm.log",
+            "maxBytes": 10485760,  # 10MB
+            "backupCount": 5,
+            "formatter": "json"
+        }
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": ["console", "file"]
+    }
+}
+```
+
+### Log Aggregation with Loki
+
+```yaml
+# loki-config.yml
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+```
+
+## Alerts
+
+### Alert Rules
+
+Define critical alerts:
+
+```yaml
+# alerts.yml
+groups:
+  - name: 3wm_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(document_processing_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High document processing error rate"
+          description: "Error rate is {{ $value }} errors per second"
+      
+      - alert: SlowProcessing
+        expr: histogram_quantile(0.95, document_processing_duration_seconds) > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Document processing is slow"
+          description: "95th percentile processing time is {{ $value }} seconds"
+      
+      - alert: DatabaseDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL database is down"
+```
+
+### Alert Channels
+
+Configure alert notifications:
+
+```yaml
+# alertmanager.yml
+global:
+  slack_api_url: 'YOUR_SLACK_WEBHOOK_URL'
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'team-notifications'
+
+receivers:
+  - name: 'team-notifications'
+    slack_configs:
+      - channel: '#3wm-alerts'
+        title: '3WM Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+```
+
+## Distributed Tracing
+
+### Jaeger Setup
+
+```yaml
+# docker-compose.tracing.yml
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # UI
+      - "6831:6831/udp"  # Compact thrift
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+```
+
+### Instrument Your Code
+
+```python
+from opentelemetry import trace
+from opentelemetry.exporter.jaeger import JaegerExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+# Configure tracer
+trace.set_tracer_provider(TracerProvider())
+tracer = trace.get_tracer(__name__)
+
+# Configure Jaeger exporter
+jaeger_exporter = JaegerExporter(
+    agent_host_name="jaeger",
+    agent_port=6831,
+)
+
+span_processor = BatchSpanProcessor(jaeger_exporter)
+trace.get_tracer_provider().add_span_processor(span_processor)
+
+# Use in your code
+@tracer.start_as_current_span("process_document")
+async def process_document(document_id: str):
+    span = trace.get_current_span()
+    span.set_attribute("document.id", document_id)
+    
+    # Your processing logic
+    ...
+```
+
+## Health Checks
+
+### Endpoint Monitoring
+
+```python
+# health_check.py
+@app.get("/health/live")
+async def liveness():
+    """Kubernetes liveness probe"""
+    return {"status": "alive"}
+
+@app.get("/health/ready")
+async def readiness():
+    """Kubernetes readiness probe"""
+    checks = {
+        "database": await check_database(),
+        "redis": await check_redis(),
+        "neo4j": await check_neo4j()
+    }
+    
+    if all(checks.values()):
+        return {"status": "ready", "checks": checks}
+    else:
+        raise HTTPException(503, {"status": "not ready", "checks": checks})
+```
+
+### Synthetic Monitoring
+
+```python
+# synthetic_monitor.py
+async def synthetic_test():
+    """Run synthetic transaction"""
+    try:
+        # Upload test document
+        doc_id = await upload_test_document()
+        
+        # Wait for processing
+        await wait_for_processing(doc_id, timeout=60)
+        
+        # Query the document
+        result = await query_document(doc_id, "What is the total?")
+        
+        # Cleanup
+        await delete_document(doc_id)
+        
+        return {"status": "success", "duration": duration}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+```
+
+## Performance Profiling
+
+### CPU Profiling
+
+```python
+import cProfile
+import pstats
+from io import StringIO
+
+def profile_endpoint(func):
+    """Decorator to profile endpoint performance"""
+    async def wrapper(*args, **kwargs):
+        profiler = cProfile.Profile()
+        profiler.enable()
+        
+        result = await func(*args, **kwargs)
+        
+        profiler.disable()
+        s = StringIO()
+        ps = pstats.Stats(profiler, stream=s).sort_stats('cumulative')
+        ps.print_stats(20)
+        
+        logger.debug(f"Profile for {func.__name__}:\n{s.getvalue()}")
+        
+        return result
+    return wrapper
+```
+
+### Memory Profiling
+
+```python
+from memory_profiler import profile
+
+@profile
+def process_large_document(document_path):
+    """Profile memory usage during document processing"""
+    # Your processing logic
+    pass
+```
+
+## Custom Metrics
+
+### Business Metrics
+
+Track business-specific KPIs:
+
+```python
+from prometheus_client import Counter, Histogram, Gauge
+
+# Define custom metrics
+invoice_amount = Histogram(
+    'invoice_amount_euros',
+    'Invoice amounts in euros',
+    buckets=[100, 500, 1000, 5000, 10000, 50000]
+)
+
+vendor_fraud_score = Gauge(
+    'vendor_fraud_risk_score',
+    'Current fraud risk score by vendor',
+    ['vendor_id', 'vendor_name']
+)
+
+duplicate_invoices = Counter(
+    'duplicate_invoices_detected',
+    'Number of duplicate invoices detected',
+    ['vendor_name']
+)
+
+# Use in your code
+invoice_amount.observe(invoice.total_amount)
+vendor_fraud_score.labels(vendor_id=v.id, vendor_name=v.name).set(v.fraud_score)
+duplicate_invoices.labels(vendor_name=vendor.name).inc()
+```
+
+## Monitoring Best Practices
+
+<Steps>
+  <Step title="Define SLIs/SLOs">
+    - Document processing time < 30s for 95% of requests
+    - API availability > 99.9%
+    - Error rate < 1%
+  </Step>
+  
+  <Step title="Set Up Alerting">
+    - Alert on symptoms, not causes
+    - Include runbook links in alerts
+    - Test alerts regularly
+  </Step>
+  
+  <Step title="Create Dashboards">
+    - Overview dashboard for operations
+    - Detailed dashboards for debugging
+    - Business dashboards for stakeholders
+  </Step>
+  
+  <Step title="Regular Reviews">
+    - Weekly performance reviews
+    - Monthly capacity planning
+    - Quarterly SLO reviews
+  </Step>
+</Steps>
+
+## Troubleshooting Metrics
+
+### Missing Metrics
+
+```bash
+# Check if metrics endpoint is accessible
+curl http://localhost:8000/metrics
+
+# Verify Prometheus is scraping
+curl http://localhost:9090/api/v1/targets
+```
+
+### High Cardinality
+
+```promql
+# Find high cardinality metrics
+topk(10, count by (__name__)({__name__=~".+"}))
+```
+
+## Next Steps
+
+- Configure alerts for your specific use case
+- Create custom dashboards for your team
+- Set up automated reporting
+- Check our [GitHub repository](https://github.com/sky-dust-intelligence/3wm) for examples
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

@@ -1,0 +1,89 @@
+graph TB
+    subgraph "3WM AI Document Intelligence Pipeline"
+        A[Invoice Input] --> B[OCR Processing Layer]
+        B --> C[AI Extraction & Validation]
+        C --> D[Knowledge Base Integration]
+        D --> E[ML Model Training & Prediction]
+        E --> F[Action Logging & Feedback Loop]
+        F --> G[End-to-End Validation]
+        
+        B --> B1[📄 Document Preprocessing]
+        B --> B2[🔍 OCR Engine (DocTR/TrOCR)]
+        B --> B3[📝 Text Extraction & Cleanup]
+        B --> B4[🤖 OCR Quality Assessment AI]
+        
+        C --> C1[🤖 GPT-4o Field Extraction]
+        C --> C2[🔢 European Number Parsing AI]
+        C --> C3[✅ Business Rule Validation]
+        C --> C4[🤖 Fraud Detection AI Agent]
+        C --> C5[🔍 Duplicate Detection AI]
+        
+        D --> D1[📚 Vector Embeddings Storage]
+        D --> D2[🧠 Knowledge Base Query]
+        D --> D3[🔗 Semantic Similarity Search]
+        D --> D4[🤖 Context-Aware Prediction AI]
+        D --> D5[📊 Historical Pattern Analysis]
+        
+        E --> E1[🎯 Journal Entry Prediction]
+        E --> E2[📈 Confidence Score Calculation]
+        E --> E3[🔄 Model Retraining Pipeline]
+        E --> E4[🤖 Adaptive Learning AI]
+        E --> E5[📊 Performance Metrics Tracking]
+        
+        F --> F1[📝 Action Logging System]
+        F --> F2[🔄 User Correction Capture]
+        F --> F3[📊 Training Data Generation]
+        F --> F4[🤖 Feedback Processing AI]
+        F --> F5[🎯 Model Improvement Tracking]
+        
+        G --> G1[🧪 End-to-End Test Suite]
+        G --> G2[📊 Pipeline Performance Metrics]
+        G --> G3[🎯 Accuracy Validation]
+        G --> G4[🤖 Confidence Calibration AI]
+        G --> G5[🔄 Continuous Integration Tests]
+        
+        subgraph "Knowledge Base & Embeddings"
+            KB1[📚 Invoice Templates DB]
+            KB2[🏢 Vendor Knowledge Base]
+            KB3[📊 Historical Patterns]
+            KB4[🔍 Embedding Vectors]
+        end
+        
+        subgraph "ML Training Pipeline"
+            ML1[📊 Training Data Collection]
+            ML2[🎯 Feature Engineering]
+            ML3[🤖 Model Training]
+            ML4[✅ Model Validation]
+            ML5[🚀 Model Deployment]
+        end
+        
+        D1 --> KB4
+        D2 --> KB1
+        D2 --> KB2
+        D5 --> KB3
+        
+        F3 --> ML1
+        E3 --> ML2
+        E4 --> ML3
+        G3 --> ML4
+        E1 --> ML5
+    end
+    
+    style A fill:#fff3e0,stroke:#333,stroke-width:2px,color:#000
+    style G fill:#e8f5e9,stroke:#333,stroke-width:2px,color:#000
+    style F1 fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
+    style F2 fill:#e3f2fd,stroke:#333,stroke-width:2px,color:#000
+    style B4 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style C1 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style C2 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style C4 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style C5 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style D2 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style D4 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style D5 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style E2 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style E4 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style F3 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style F4 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style G4 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000
+    style G5 fill:#f3e5f5,stroke:#333,stroke-width:1px,color:#000

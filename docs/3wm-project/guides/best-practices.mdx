@@ -1,0 +1,470 @@
+---
+title: 'Best Practices'
+description: 'Recommended practices for using 3WM effectively'
+icon: 'star'
+---
+
+# Best Practices Guide
+
+Follow these best practices to get the most out of the 3WM AI Document Intelligence system by Sky Dust.
+
+## Document Preparation
+
+### Scan Quality
+
+<Card title="Optimal Scanning Settings" icon="scanner">
+  - **Resolution**: 300 DPI minimum
+  - **Color Mode**: Color for best results
+  - **File Format**: PDF with text layer preferred
+  - **File Size**: Keep under 50MB per document
+</Card>
+
+### File Naming
+
+Use consistent naming conventions:
+
+```
+# Good examples
+invoice_2024-01-15_ACME-Corp_INV-12345.pdf
+receipt_2024-01-15_supplier-name_amount.pdf
+
+# Avoid
+scan001.pdf
+untitled.pdf
+invoice.pdf
+```
+
+## API Usage
+
+### Authentication
+
+<CodeGroup>
+```python Python
+import requests
+from datetime import datetime, timedelta
+
+class APIClient:
+    def __init__(self, base_url, email, password):
+        self.base_url = base_url
+        self.token = None
+        self.refresh_token = None
+        self.token_expires = None
+        self._login(email, password)
+    
+    def _login(self, email, password):
+        response = requests.post(
+            f"{self.base_url}/auth/login",
+            json={"email": email, "password": password}
+        )
+        data = response.json()
+        self.token = data["access_token"]
+        self.refresh_token = data["refresh_token"]
+        self.token_expires = datetime.now() + timedelta(minutes=30)
+    
+    def _ensure_authenticated(self):
+        if datetime.now() >= self.token_expires:
+            self._refresh_token()
+    
+    def request(self, method, endpoint, **kwargs):
+        self._ensure_authenticated()
+        headers = kwargs.get("headers", {})
+        headers["Authorization"] = f"Bearer {self.token}"
+        kwargs["headers"] = headers
+        return requests.request(method, f"{self.base_url}{endpoint}", **kwargs)
+```
+
+```javascript JavaScript
+class APIClient {
+  constructor(baseUrl, email, password) {
+    this.baseUrl = baseUrl;
+    this.token = null;
+    this.refreshToken = null;
+    this.tokenExpires = null;
+    this.login(email, password);
+  }
+  
+  async login(email, password) {
+    const response = await fetch(`${this.baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await response.json();
+    this.token = data.access_token;
+    this.refreshToken = data.refresh_token;
+    this.tokenExpires = Date.now() + (30 * 60 * 1000);
+  }
+  
+  async ensureAuthenticated() {
+    if (Date.now() >= this.tokenExpires) {
+      await this.refreshToken();
+    }
+  }
+  
+  async request(method, endpoint, options = {}) {
+    await this.ensureAuthenticated();
+    return fetch(`${this.baseUrl}${endpoint}`, {
+      method,
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${this.token}`
+      }
+    });
+  }
+}
+```
+</CodeGroup>
+
+### Rate Limiting
+
+Implement exponential backoff:
+
+```python
+import time
+from typing import Callable
+
+def retry_with_backoff(
+    func: Callable,
+    max_retries: int = 3,
+    initial_delay: float = 1.0
+):
+    """Retry function with exponential backoff"""
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except RateLimitError as e:
+            if attempt == max_retries - 1:
+                raise
+            delay = initial_delay * (2 ** attempt)
+            time.sleep(delay)
+```
+
+## Data Management
+
+### Document Organization
+
+<Tabs>
+  <Tab title="By Date">
+    ```
+    documents/
+    ├── 2024/
+    │   ├── 01-january/
+    │   │   ├── invoices/
+    │   │   ├── receipts/
+    │   │   └── contracts/
+    │   └── 02-february/
+    │       ├── invoices/
+    │       └── receipts/
+    ```
+  </Tab>
+  <Tab title="By Vendor">
+    ```
+    documents/
+    ├── vendors/
+    │   ├── acme-corp/
+    │   │   ├── invoices/
+    │   │   ├── contracts/
+    │   │   └── correspondence/
+    │   └── tech-supplies/
+    │       ├── invoices/
+    │       └── receipts/
+    ```
+  </Tab>
+  <Tab title="By Project">
+    ```
+    documents/
+    ├── projects/
+    │   ├── project-alpha/
+    │   │   ├── invoices/
+    │   │   ├── contracts/
+    │   │   └── reports/
+    │   └── project-beta/
+    │       ├── invoices/
+    │       └── expenses/
+    ```
+  </Tab>
+</Tabs>
+
+### Metadata Standards
+
+Always include comprehensive metadata:
+
+```json
+{
+  "document_metadata": {
+    "type": "invoice",
+    "vendor": {
+      "name": "ACME Corp",
+      "id": "vendor_123",
+      "vat_number": "BE0123456789"
+    },
+    "project": {
+      "id": "proj_456",
+      "name": "Project Alpha",
+      "cost_center": "CC-1001"
+    },
+    "tags": ["urgent", "requires_approval", "capex"],
+    "custom_fields": {
+      "department": "Engineering",
+      "approver": "john.doe@company.com"
+    }
+  }
+}
+```
+
+## Query Optimization
+
+### Natural Language Queries
+
+<Card title="Effective Query Patterns" icon="message-question">
+  **Do:**
+  - "Show me all invoices from ACME Corp in January 2024"
+  - "Find invoices over €5000 that need approval"
+  - "What's the total spend with Tech Supplies this quarter?"
+  
+  **Avoid:**
+  - "invoices" (too vague)
+  - "stuff from last month" (unclear)
+  - "that document I uploaded yesterday" (not specific)
+</Card>
+
+### Complex Queries
+
+Break down complex queries:
+
+```python
+# Instead of one complex query
+"Find all invoices from vendors with potential fraud indicators where the amount is over 10000 and they have similar vendors that are blacklisted"
+
+# Use step-by-step approach
+queries = [
+    "Find vendors with fraud score above 0.7",
+    "Show invoices over 10000 from these vendors",
+    "Check if these vendors have blacklisted similar vendors"
+]
+```
+
+## Security Best Practices
+
+### API Key Management
+
+<Warning>
+  Never hardcode API keys or credentials in your code!
+</Warning>
+
+```python
+# Bad
+api_key = "sk-1234567890abcdef"
+
+# Good
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+
+# Better
+from app.config import settings
+api_key = settings.openai_api_key
+```
+
+### Data Privacy
+
+1. **Anonymize sensitive data** in test environments
+2. **Encrypt documents** at rest and in transit
+3. **Implement access controls** based on roles
+4. **Audit log** all document access
+
+## Performance Optimization
+
+### Batch Processing
+
+Process documents in batches for efficiency:
+
+```python
+async def process_documents_batch(documents: List[Path], batch_size: int = 10):
+    """Process documents in batches"""
+    results = []
+    
+    for i in range(0, len(documents), batch_size):
+        batch = documents[i:i + batch_size]
+        
+        # Process batch in parallel
+        batch_results = await asyncio.gather(*[
+            process_document(doc) for doc in batch
+        ])
+        
+        results.extend(batch_results)
+        
+        # Add delay between batches to avoid rate limits
+        if i + batch_size < len(documents):
+            await asyncio.sleep(1)
+    
+    return results
+```
+
+### Caching Strategy
+
+Implement intelligent caching:
+
+```python
+from functools import lru_cache
+from datetime import datetime, timedelta
+
+class CachedDocumentService:
+    def __init__(self, cache_ttl_minutes=60):
+        self.cache_ttl = timedelta(minutes=cache_ttl_minutes)
+        self._cache = {}
+    
+    def get_document(self, document_id: str):
+        # Check cache first
+        if document_id in self._cache:
+            cached_data, timestamp = self._cache[document_id]
+            if datetime.now() - timestamp < self.cache_ttl:
+                return cached_data
+        
+        # Fetch from database
+        document = self._fetch_from_db(document_id)
+        
+        # Update cache
+        self._cache[document_id] = (document, datetime.now())
+        
+        return document
+```
+
+## Monitoring and Maintenance
+
+### Health Checks
+
+Implement comprehensive health checks:
+
+```python
+@app.get("/health")
+async def health_check():
+    """Comprehensive health check endpoint"""
+    checks = {
+        "api": "healthy",
+        "database": await check_database(),
+        "neo4j": await check_neo4j(),
+        "redis": await check_redis(),
+        "storage": await check_storage(),
+        "ocr_service": await check_ocr_service()
+    }
+    
+    overall_health = all(
+        status == "healthy" 
+        for status in checks.values()
+    )
+    
+    return {
+        "status": "healthy" if overall_health else "unhealthy",
+        "timestamp": datetime.now().isoformat(),
+        "checks": checks
+    }
+```
+
+### Regular Maintenance
+
+<Steps>
+  <Step title="Daily Tasks">
+    - Monitor error logs
+    - Check processing queue length
+    - Verify backup completion
+  </Step>
+  
+  <Step title="Weekly Tasks">
+    - Review performance metrics
+    - Clean up temporary files
+    - Update vendor patterns
+  </Step>
+  
+  <Step title="Monthly Tasks">
+    - Audit user access
+    - Review and optimize slow queries
+    - Update OCR models if needed
+    - Test disaster recovery procedures
+  </Step>
+</Steps>
+
+## Integration Patterns
+
+### Webhook Implementation
+
+Reliable webhook handling:
+
+```python
+@app.post("/webhooks/document-processed")
+async def webhook_handler(
+    request: Request,
+    background_tasks: BackgroundTasks
+):
+    """Handle webhooks with retry logic"""
+    # Verify webhook signature
+    signature = request.headers.get("X-Webhook-Signature")
+    if not verify_signature(await request.body(), signature):
+        raise HTTPException(403, "Invalid signature")
+    
+    # Process asynchronously
+    data = await request.json()
+    background_tasks.add_task(process_webhook_data, data)
+    
+    # Return immediately
+    return {"status": "accepted"}
+
+async def process_webhook_data(data: dict):
+    """Process webhook data with retry logic"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            await handle_document_processed(data)
+            break
+        except Exception as e:
+            if attempt == max_retries - 1:
+                await log_webhook_failure(data, str(e))
+            await asyncio.sleep(2 ** attempt)
+```
+
+## Troubleshooting Tips
+
+### Debug Mode
+
+Enable detailed logging for troubleshooting:
+
+```python
+# .env
+LOG_LEVEL=DEBUG
+DEBUG_OCR=true
+DEBUG_AGENTS=true
+SAVE_INTERMEDIATE_RESULTS=true
+
+# In code
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG if settings.debug else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger(__name__)
+```
+
+### Common Pitfalls
+
+<Accordion title="Avoid these common mistakes">
+  1. **Not handling pagination** - Always check for multiple pages
+  2. **Ignoring rate limits** - Implement proper backoff
+  3. **Assuming immediate processing** - Use async patterns
+  4. **Not validating inputs** - Always validate before processing
+  5. **Hardcoding configurations** - Use environment variables
+</Accordion>
+
+## Next Steps
+
+- Review our [Advanced Usage Guide](/3wm-project/guides/advanced-usage) for power user features
+- Check the [Troubleshooting Guide](/3wm-project/guides/troubleshooting) when issues arise
+- Visit our [GitHub repository](https://github.com/sky-dust-intelligence/3wm) to contribute best practices
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

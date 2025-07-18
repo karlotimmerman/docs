@@ -1,0 +1,487 @@
+---
+title: 'Advanced Usage'
+description: 'Advanced features and customization options for 3WM'
+icon: 'rocket'
+---
+
+# Advanced Usage Guide
+
+This guide covers advanced features and customization options for power users of the 3WM AI Document Intelligence system by Sky Dust.
+
+## Custom Field Extraction
+
+### Defining Custom Fields
+
+Create custom extraction templates for specific document types:
+
+```python
+from app.services.extraction import CustomFieldExtractor
+
+# Define custom fields for a specific vendor
+custom_extractor = CustomFieldExtractor({
+    "vendor_name": "ACME Corp",
+    "fields": {
+        "project_code": {
+            "type": "string",
+            "pattern": r"PRJ-\d{6}",
+            "required": True
+        },
+        "cost_center": {
+            "type": "string",
+            "location": "header",
+            "keywords": ["cost center", "CC"]
+        },
+        "approval_status": {
+            "type": "enum",
+            "values": ["approved", "pending", "rejected"],
+            "default": "pending"
+        }
+    }
+})
+
+# Apply to document
+result = custom_extractor.extract(document_id)
+```
+
+### Field Validation Rules
+
+Implement custom validation logic:
+
+```python
+from app.services.validation import ValidationRule
+
+class CustomVATValidation(ValidationRule):
+    def validate(self, value: str, country: str = "BE") -> bool:
+        """Custom VAT validation for specific countries"""
+        if country == "BE":
+            # Belgian VAT: BE + 10 digits
+            return bool(re.match(r'^BE\d{10}$', value))
+        elif country == "NL":
+            # Dutch VAT: NL + 9 digits + B + 2 digits
+            return bool(re.match(r'^NL\d{9}B\d{2}$', value))
+        return False
+
+# Register custom validation
+validator.add_rule("vat_number", CustomVATValidation())
+```
+
+## Advanced Query Patterns
+
+### Complex Graph Queries
+
+Leverage the full power of Neo4j for complex relationship analysis:
+
+```cypher
+// Find all invoices from vendors with potential fraud indicators
+MATCH (v:Vendor)-[:ISSUED]->(i:Invoice)
+WHERE v.fraud_score > 0.7
+  AND i.total_amount > 10000
+  AND EXISTS {
+    MATCH (v)-[:SIMILAR_TO]->(v2:Vendor)
+    WHERE v2.blacklisted = true
+  }
+RETURN v.name, i.invoice_number, i.total_amount, v.fraud_score
+ORDER BY v.fraud_score DESC
+```
+
+### Natural Language Query Templates
+
+Create reusable query templates:
+
+```python
+# Register custom query template
+query_engine.register_template(
+    name="high_value_recurring",
+    description="Find high-value recurring expenses",
+    template="""
+    Find all invoices where:
+    - Total amount exceeds {threshold}
+    - From the same vendor
+    - Recurring pattern (monthly/quarterly)
+    - In the last {period} months
+    """,
+    parameters={
+        "threshold": 5000,
+        "period": 12
+    }
+)
+
+# Use template
+result = agent.query("Show me high value recurring expenses above 10000")
+```
+
+## Performance Optimization
+
+### Batch Processing
+
+Process multiple documents efficiently:
+
+```python
+from app.services.batch import BatchProcessor
+
+batch = BatchProcessor(
+    max_concurrent=10,
+    chunk_size=50,
+    retry_failed=True
+)
+
+# Process documents in parallel
+results = await batch.process_documents(
+    document_ids=document_list,
+    operations=[
+        "ocr_extraction",
+        "field_validation",
+        "graph_update",
+        "vector_embedding"
+    ]
+)
+```
+
+### Caching Strategies
+
+Configure Redis caching for optimal performance:
+
+```python
+# Cache configuration
+CACHE_CONFIG = {
+    "ocr_results": {
+        "ttl": 3600,  # 1 hour
+        "max_size": "1GB"
+    },
+    "embeddings": {
+        "ttl": 86400,  # 24 hours
+        "max_size": "5GB"
+    },
+    "query_results": {
+        "ttl": 300,  # 5 minutes
+        "max_size": "500MB"
+    }
+}
+
+# Implement cache warming
+async def warm_cache():
+    """Pre-load frequently accessed data"""
+    frequent_vendors = await db.get_top_vendors(limit=100)
+    for vendor in frequent_vendors:
+        await cache.set(
+            f"vendor:{vendor.id}",
+            vendor.to_dict(),
+            ttl=3600
+        )
+```
+
+## Custom AI Agents
+
+### Creating Custom Agents
+
+Extend the LangGraph agent system:
+
+```python
+from langchain.agents import AgentExecutor
+from app.agents.base import BaseAgent
+
+class ComplianceAgent(BaseAgent):
+    """Custom agent for compliance checking"""
+    
+    def __init__(self):
+        super().__init__(
+            name="compliance_agent",
+            description="Checks invoices for compliance issues"
+        )
+        
+    async def process(self, document: Document) -> dict:
+        # Check regulatory compliance
+        compliance_checks = {
+            "vat_valid": self.check_vat_compliance(document),
+            "required_fields": self.check_required_fields(document),
+            "amount_limits": self.check_amount_limits(document),
+            "approval_chain": self.check_approval_requirements(document)
+        }
+        
+        return {
+            "compliant": all(compliance_checks.values()),
+            "issues": [k for k, v in compliance_checks.items() if not v],
+            "risk_level": self.calculate_risk_level(compliance_checks)
+        }
+
+# Register custom agent
+agent_registry.register(ComplianceAgent())
+```
+
+### Agent Orchestration
+
+Create complex workflows with multiple agents:
+
+```python
+from app.agents.orchestrator import WorkflowOrchestrator
+
+workflow = WorkflowOrchestrator()
+
+# Define multi-agent workflow
+workflow.add_flow("invoice_processing", [
+    ("ocr_agent", {"enhance": True}),
+    ("extraction_agent", {"fields": "all"}),
+    ("validation_agent", {"strict": True}),
+    ("compliance_agent", {"region": "EU"}),
+    ("enrichment_agent", {"sources": ["internal", "external"]}),
+    ("approval_agent", {"threshold": 5000})
+])
+
+# Execute workflow
+result = await workflow.execute(
+    "invoice_processing",
+    document_id=doc_id
+)
+```
+
+## Integration Patterns
+
+### Webhook Integration
+
+Set up webhooks for real-time notifications:
+
+```python
+# Configure webhook endpoints
+WEBHOOKS = {
+    "document_processed": {
+        "url": "https://your-system.com/webhooks/3wm",
+        "events": ["ocr_complete", "validation_complete"],
+        "retry_policy": {
+            "max_attempts": 3,
+            "backoff": "exponential"
+        }
+    }
+}
+
+# Webhook payload example
+{
+    "event": "document_processed",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "document": {
+        "id": "doc_123",
+        "type": "invoice",
+        "vendor": "ACME Corp",
+        "total": 1500.00,
+        "status": "validated"
+    },
+    "metadata": {
+        "processing_time": 2.5,
+        "confidence_score": 0.95
+    }
+}
+```
+
+### API Extensions
+
+Create custom API endpoints:
+
+```python
+from fastapi import APIRouter
+from app.api.base import BaseRouter
+
+class CustomRouter(BaseRouter):
+    def __init__(self):
+        super().__init__(prefix="/api/v1/custom")
+        
+    def setup_routes(self):
+        @self.router.post("/bulk-analysis")
+        async def bulk_analysis(
+            document_ids: List[str],
+            analysis_type: str = "full"
+        ):
+            """Perform bulk document analysis"""
+            results = await analyze_documents_bulk(
+                document_ids,
+                analysis_type
+            )
+            return {
+                "analyzed": len(results),
+                "results": results
+            }
+
+# Register custom routes
+app.include_router(CustomRouter().router)
+```
+
+## Monitoring and Analytics
+
+### Custom Metrics
+
+Track business-specific metrics:
+
+```python
+from prometheus_client import Counter, Histogram, Gauge
+
+# Define custom metrics
+invoice_processed = Counter(
+    'invoice_processed_total',
+    'Total processed invoices',
+    ['vendor', 'status']
+)
+
+processing_time = Histogram(
+    'document_processing_seconds',
+    'Time spent processing documents',
+    ['document_type', 'stage']
+)
+
+fraud_detection = Gauge(
+    'fraud_risk_score',
+    'Current fraud risk score by vendor',
+    ['vendor_id']
+)
+
+# Track metrics
+with processing_time.labels(
+    document_type='invoice',
+    stage='ocr'
+).time():
+    result = await ocr_service.process(document)
+
+invoice_processed.labels(
+    vendor=result.vendor,
+    status='success'
+).inc()
+```
+
+### Analytics Dashboard
+
+Create custom analytics queries:
+
+```sql
+-- Top vendors by invoice volume
+SELECT 
+    v.name,
+    COUNT(i.id) as invoice_count,
+    SUM(i.total_amount) as total_amount,
+    AVG(i.processing_time) as avg_processing_time
+FROM vendors v
+JOIN invoices i ON v.id = i.vendor_id
+WHERE i.created_at > NOW() - INTERVAL '30 days'
+GROUP BY v.name
+ORDER BY invoice_count DESC
+LIMIT 10;
+
+-- Processing efficiency trends
+SELECT 
+    DATE_TRUNC('day', created_at) as date,
+    AVG(processing_time) as avg_time,
+    COUNT(*) as document_count,
+    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failures
+FROM documents
+WHERE created_at > NOW() - INTERVAL '7 days'
+GROUP BY DATE_TRUNC('day', created_at)
+ORDER BY date;
+```
+
+## Security Hardening
+
+### Advanced Authentication
+
+Implement multi-factor authentication:
+
+```python
+from app.auth.mfa import MFAProvider
+
+# Configure MFA
+mfa = MFAProvider(
+    methods=["totp", "sms", "email"],
+    required_for_roles=["admin", "finance"]
+)
+
+@app.post("/api/v1/auth/verify-mfa")
+async def verify_mfa(
+    token: str,
+    code: str,
+    method: str = "totp"
+):
+    user = await get_current_user(token)
+    if await mfa.verify(user, code, method):
+        return {"access_token": create_access_token(user, mfa=True)}
+    raise HTTPException(401, "Invalid MFA code")
+```
+
+### Data Encryption
+
+Implement field-level encryption:
+
+```python
+from app.security.encryption import FieldEncryption
+
+# Configure sensitive field encryption
+encryption = FieldEncryption(
+    fields=["bank_account", "vat_number", "total_amount"],
+    algorithm="AES-256-GCM"
+)
+
+# Encrypt before storage
+document_data = encryption.encrypt_fields(document_data)
+
+# Decrypt for authorized users
+if user.has_permission("view_sensitive_data"):
+    document_data = encryption.decrypt_fields(document_data)
+```
+
+## Best Practices
+
+### Error Handling
+
+Implement comprehensive error handling:
+
+```python
+from app.exceptions import DocumentProcessingError
+
+class ProcessingErrorHandler:
+    @staticmethod
+    async def handle_ocr_error(error: Exception, document_id: str):
+        """Handle OCR processing errors"""
+        if isinstance(error, TimeoutError):
+            # Retry with different settings
+            return await retry_with_fallback(document_id)
+        elif isinstance(error, InvalidFormatError):
+            # Try alternative OCR engine
+            return await process_with_alternative_ocr(document_id)
+        else:
+            # Log and notify
+            await log_error(error, context={"document_id": document_id})
+            await notify_admin(error)
+            raise DocumentProcessingError(f"OCR failed: {str(error)}")
+```
+
+### Testing Strategies
+
+Implement comprehensive testing:
+
+```python
+import pytest
+from app.tests.fixtures import test_document
+
+@pytest.mark.asyncio
+async def test_invoice_processing_pipeline():
+    """Test complete invoice processing pipeline"""
+    # Upload test document
+    response = await client.post(
+        "/api/v1/upload",
+        files={"file": test_document}
+    )
+    document_id = response.json()["id"]
+    
+    # Wait for processing
+    await wait_for_processing(document_id)
+    
+    # Verify results
+    result = await client.get(f"/api/v1/documents/{document_id}")
+    assert result.status_code == 200
+    assert result.json()["status"] == "completed"
+    assert "invoice_number" in result.json()["extracted_data"]
+```
+
+## Next Steps
+
+- Explore our [API Reference](/3wm-project/api-reference/overview) for detailed endpoint documentation
+- Check out [Deployment Guide](/3wm-project/deployment/overview) for production setup
+- Visit our [GitHub repository](https://github.com/sky-dust-intelligence/3wm) for examples and updates
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

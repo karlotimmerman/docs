@@ -1,0 +1,351 @@
+---
+title: "Graph API"
+description: "Neo4j vendor relationships and fraud detection endpoints"
+icon: "diagram-project"
+---
+
+
+## Get Vendor Network
+
+Retrieve vendor relationships and network visualization data.
+
+<RequestExample>
+```bash cURL
+curl -X GET http://localhost:8000/api/v1/graph/vendors/vendor_123/network \
+  -H "Authorization: Bearer your-token" \
+  -G -d "depth=2" -d "include_invoices=true"
+```
+
+```python Python
+response = requests.get(
+    "http://localhost:8000/api/v1/graph/vendors/vendor_123/network",
+    params={
+        "depth": 2,
+        "include_invoices": True,
+        "include_relationships": ["RELATED_TO", "ISSUED"]
+    },
+    headers={"Authorization": f"Bearer {token}"}
+)
+```
+</RequestExample>
+
+### Endpoint
+
+`GET /api/v1/graph/vendors/{vendor_id}/network`
+
+### Path Parameters
+
+<ParamField path="vendor_id" type="string" required>
+  Unique vendor identifier
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="depth" type="integer" default="1">
+  Network traversal depth (1-3)
+</ParamField>
+
+<ParamField query="include_invoices" type="boolean" default="false">
+  Include invoice nodes in network
+</ParamField>
+
+<ParamField query="include_relationships" type="array">
+  Relationship types to include
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json
+{
+  "status": "success",
+  "data": {
+    "nodes": [
+      {
+        "id": "vendor_123",
+        "label": "ACME Corporation",
+        "type": "vendor",
+        "properties": {
+          "vat_number": "NL123456789B01",
+          "country": "NL",
+          "risk_score": 0.2
+        }
+      },
+      {
+        "id": "vendor_456",
+        "label": "ACME Subsidiary B.V.",
+        "type": "vendor",
+        "properties": {
+          "vat_number": "NL987654321B01",
+          "country": "NL"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "vendor_123",
+        "to": "vendor_456",
+        "type": "RELATED_TO",
+        "properties": {
+          "relationship": "subsidiary"
+        }
+      }
+    ],
+    "statistics": {
+      "total_nodes": 2,
+      "total_edges": 1,
+      "vendor_count": 2,
+      "invoice_count": 0
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Analyze Vendor Risk
+
+Perform comprehensive risk analysis for a vendor.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/graph/vendors/vendor_123/analyze-risk \
+  -H "Authorization: Bearer your-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "check_types": ["iban_changes", "amount_anomalies", "duplicate_invoices"],
+    "time_period": "6_months"
+  }'
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/graph/vendors/{vendor_id}/analyze-risk`
+
+### Request Body
+
+<ParamField body="check_types" type="array" required>
+  Types of risk checks to perform:
+  - `iban_changes`
+  - `amount_anomalies`
+  - `duplicate_invoices`
+  - `payment_patterns`
+  - `network_analysis`
+</ParamField>
+
+<ParamField body="time_period" type="string" default="3_months">
+  Analysis time period: `1_month`, `3_months`, `6_months`, `1_year`
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json
+{
+  "status": "success",
+  "data": {
+    "vendor_id": "vendor_123",
+    "risk_score": 0.75,
+    "risk_level": "MEDIUM",
+    "indicators": {
+      "iban_changes": {
+        "detected": true,
+        "count": 2,
+        "details": [
+          {
+            "date": "2024-01-15",
+            "old_iban": "NL91ABNA0417164300",
+            "new_iban": "NL91RABO0417164300",
+            "risk_score": 0.8
+          }
+        ]
+      },
+      "amount_anomalies": {
+        "detected": true,
+        "count": 1,
+        "details": [
+          {
+            "invoice_id": "inv_789",
+            "amount": 15000.00,
+            "expected_range": [1000, 5000],
+            "deviation": "3x average"
+          }
+        ]
+      },
+      "duplicate_invoices": {
+        "detected": false,
+        "count": 0
+      }
+    },
+    "recommendations": [
+      "Review recent IBAN changes with vendor",
+      "Verify large invoice INV-2024-045",
+      "Request additional documentation"
+    ]
+  }
+}
+```
+</ResponseExample>
+
+## Detect Fraud Patterns
+
+Run fraud detection algorithms across the graph.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/graph/fraud/detect \
+  -H "Authorization: Bearer your-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scope": "all_vendors",
+    "algorithms": ["community_detection", "anomaly_detection"],
+    "threshold": 0.7
+  }'
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/graph/fraud/detect`
+
+### Request Body
+
+<ParamField body="scope" type="string" required>
+  Detection scope: `all_vendors`, `recent_invoices`, `specific_vendor`
+</ParamField>
+
+<ParamField body="algorithms" type="array">
+  Detection algorithms to run
+</ParamField>
+
+<ParamField body="threshold" type="number" default="0.8">
+  Minimum confidence threshold (0-1)
+</ParamField>
+
+## Get Vendor Relationships
+
+Retrieve all relationships for a vendor.
+
+<RequestExample>
+```bash cURL
+curl -X GET http://localhost:8000/api/v1/graph/vendors/vendor_123/relationships \
+  -H "Authorization: Bearer your-token"
+```
+</RequestExample>
+
+### Response
+
+<ResponseExample>
+```json
+{
+  "status": "success",
+  "data": {
+    "vendor": {
+      "id": "vendor_123",
+      "name": "ACME Corporation",
+      "vat_number": "NL123456789B01"
+    },
+    "relationships": [
+      {
+        "type": "SUBSIDIARY",
+        "direction": "outgoing",
+        "related_vendor": {
+          "id": "vendor_456",
+          "name": "ACME Subsidiary B.V."
+        }
+      },
+      {
+        "type": "BANK_ACCOUNT",
+        "accounts": [
+          {
+            "iban": "NL91ABNA0417164300",
+            "active": true,
+            "since": "2023-01-01"
+          }
+        ]
+      }
+    ],
+    "statistics": {
+      "total_invoices": 145,
+      "total_amount": 125000.00,
+      "avg_invoice_amount": 862.07,
+      "payment_terms_avg": 28
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Create Vendor Relationship
+
+Establish a relationship between vendors.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/graph/vendors/relationships \
+  -H "Authorization: Bearer your-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from_vendor_id": "vendor_123",
+    "to_vendor_id": "vendor_456",
+    "relationship_type": "SUBSIDIARY",
+    "properties": {
+      "ownership_percentage": 100,
+      "established_date": "2023-01-01"
+    }
+  }'
+```
+</RequestExample>
+
+## Graph Analytics
+
+Run graph algorithms for insights.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/graph/analytics/run \
+  -H "Authorization: Bearer your-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "algorithm": "pagerank",
+    "parameters": {
+      "dampingFactor": 0.85,
+      "iterations": 20
+    }
+  }'
+```
+</RequestExample>
+
+### Available Algorithms
+
+- **PageRank**: Identify important vendors
+- **Community Detection**: Find vendor clusters
+- **Centrality**: Measure vendor influence
+- **Path Finding**: Find connections between vendors
+
+## Export Graph Data
+
+Export graph data for visualization.
+
+<RequestExample>
+```bash cURL
+curl -X GET http://localhost:8000/api/v1/graph/export \
+  -H "Authorization: Bearer your-token" \
+  -G -d "format=cytoscape" -d "include_invoices=false"
+```
+</RequestExample>
+
+### Export Formats
+
+- `cytoscape`: Cytoscape.js compatible JSON
+- `gephi`: GEXF format for Gephi
+- `graphml`: Standard GraphML format
+- `d3`: D3.js force graph format
+
+## Best Practices
+
+1. **Limit Depth**: Keep traversal depth ≤ 3 for performance
+2. **Use Filters**: Apply filters to reduce result size
+3. **Cache Results**: Graph queries can be expensive
+4. **Monitor Performance**: Check query execution times
+5. **Regular Analysis**: Run fraud detection regularly 

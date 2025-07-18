@@ -1,0 +1,190 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "3WM AI Documentverwerking",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D",
+    "anchors": {
+      "from": "#0F172A",
+      "to": "#1E293B"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@skydust.ai"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://app.skydust.ai"
+  },
+  "tabs": [
+    {
+      "name": "API Referentie",
+      "url": "api-reference"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Documentatie",
+      "icon": "book-open-cover",
+      "url": "https://docs.skydust.ai"
+    },
+    {
+      "name": "Community",
+      "icon": "slack",
+      "url": "https://skydust.ai/slack"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://skydust.ai/blog"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Aan de slag",
+      "pages": [
+        "docs/index",
+        "docs/3wm-project/overview",
+        "docs/3wm-project/getting-started/quickstart"
+      ]
+    },
+    {
+      "group": "Installatie",
+      "pages": [
+        "docs/3wm-project/getting-started/installation",
+        "docs/3wm-project/getting-started/configuration"
+      ]
+    },
+    {
+      "group": "Functionaliteiten",
+      "pages": [
+        "docs/3wm-project/features/document-processing",
+        "docs/3wm-project/features/ai-agents",
+        "docs/3wm-project/features/three-way-matching",
+        "docs/3wm-project/features/email-integration"
+      ]
+    },
+    {
+      "group": "API Referentie",
+      "pages": [
+        "docs/3wm-project/api-reference/overview",
+        "docs/3wm-project/api-reference/authentication",
+        "docs/3wm-project/api-reference/upload",
+        "docs/3wm-project/api-reference/agent",
+        "docs/3wm-project/api-reference/graph"
+      ]
+    },
+    {
+      "group": "Architectuur",
+      "pages": [
+        "docs/3wm-project/architecture/overview",
+        "docs/3wm-project/architecture/components",
+        "docs/3wm-project/architecture/data-flow",
+        "docs/3wm-project/architecture/security"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "docs/3wm-project/deployment/overview",
+        "docs/3wm-project/deployment/docker",
+        "docs/3wm-project/deployment/kubernetes",
+        "docs/3wm-project/deployment/production",
+        "docs/3wm-project/deployment/monitoring"
+      ]
+    },
+    {
+      "group": "Handleidingen",
+      "pages": [
+        "docs/3wm-project/guides/best-practices",
+        "docs/3wm-project/guides/advanced-usage",
+        "docs/3wm-project/guides/troubleshooting",
+        "docs/3wm-project/guides/ai-agents-explained-nl"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/skydustio",
+    "github": "https://github.com/sky-dust-intelligence",
+    "linkedin": "https://www.linkedin.com/company/skydust"
+  },
+  "backgroundImage": "/images/background.png",
+  "integrations": {
+    "intercom": "APP_ID"
+  },
+  "api": {
+    "baseUrl": "https://api.skydust.app",
+    "auth": {
+      "method": "bearer"
+    },
+    "playground": {
+      "mode": "show"
+    }
+  },
+  "openapi": "/api-reference/openapi.json",
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true,
+    "raiseIssue": true
+  },
+  "search": {
+    "prompt": "Zoek in 3WM documentatie..."
+  },
+  "metadata": {
+    "og:title": "3WM AI Documentverwerking Documentatie",
+    "og:description": "Enterprise factuurautomatisering aangedreven door AI",
+    "og:image": "/images/hero-dark.png",
+    "twitter:card": "summary_large_image",
+    "twitter:site": "@skydustio",
+    "twitter:title": "3WM Documentatie",
+    "twitter:description": "Enterprise factuurautomatisering aangedreven door AI"
+  },
+  "analytics": {
+    "ga4": {
+      "measurementId": "G-XXXXXXXXXX"
+    }
+  },
+  "seo": {
+    "indexHiddenPages": false
+  },
+  "redirects": [
+    {
+      "source": "/essentials/:path*",
+      "destination": "/docs/3wm-project/:path*"
+    },
+    {
+      "source": "/ai-tools/:path*",
+      "destination": "/docs/3wm-project/guides/:path*"
+    }
+  ],
+  "primaryTab": {
+    "name": "Documentatie"
+  },
+  "versions": [
+    {
+      "name": "v2.0",
+      "url": "https://v2.docs.skydust.ai"
+    },
+    {
+      "name": "v1.0",
+      "url": "https://v1.docs.skydust.ai"
+    }
+  ],
+  "theme": "quill",
+  "modeToggle": {
+    "default": "dark",
+    "isHidden": false
+  },
+  "isWhiteLabeled": false,
+  "robots": "index, follow",
+  "lang": "nl-NL"
+} 

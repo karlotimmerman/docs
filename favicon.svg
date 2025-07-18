@@ -1,19 +1,20 @@
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M9.06145 23.1079C5.26816 22.3769 -3.39077 20.6274 1.4173 5.06384C9.6344 6.09939 16.9728 14.0644 9.06145 23.1079Z" fill="url(#paint0_linear_17557_2021)"/>
-<path d="M8.91928 23.0939C5.27642 21.2223 0.78371 4.20891 17.0071 0C20.7569 7.19341 19.6212 16.5452 8.91928 23.0939Z" fill="url(#paint1_linear_17557_2021)"/>
-<path d="M8.91388 23.0788C8.73534 19.8817 10.1585 9.08525 23.5699 13.1107C23.1812 20.1229 18.984 26.4182 8.91388 23.0788Z" fill="url(#paint2_linear_17557_2021)"/>
-<defs>
-<linearGradient id="paint0_linear_17557_2021" x1="3.77557" y1="5.91571" x2="5.23185" y2="21.5589" gradientUnits="userSpaceOnUse">
-<stop stop-color="#18E299"/>
-<stop offset="1" stop-color="#15803D"/>
-</linearGradient>
-<linearGradient id="paint1_linear_17557_2021" x1="12.1711" y1="-0.718425" x2="10.1897" y2="22.9832" gradientUnits="userSpaceOnUse">
-<stop stop-color="#16A34A"/>
-<stop offset="1" stop-color="#4ADE80"/>
-</linearGradient>
-<linearGradient id="paint2_linear_17557_2021" x1="23.1327" y1="15.353" x2="9.33841" y2="18.5196" gradientUnits="userSpaceOnUse">
-<stop stop-color="#4ADE80"/>
-<stop offset="1" stop-color="#0D9373"/>
-</linearGradient>
-</defs>
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" style="background: linear-gradient(to bottom, #232370, #000033);" role="img" aria-labelledby="title desc">
+  <title id="title">Skydust Logo</title>
+  <desc id="desc">sky dust logo. one stop platform for all your CSRD needs.</desc>
+  <rect x="0" y="0" width="64" height="64" rx="3" ry="3" fill="url(#bg-gradient)"/>
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#232370;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#000033;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <g transform="scale(0.102) translate(1.6, 1.6)">
+    <path d="M 68 197 C 65 233, 68, 272, 66, 309 C 129 312, 193, 306, 250, 312 C 246 331, 253, 349, 244, 360 C 186 360, 131, 360, 75, 360 C 65 367, 65, 383, 72, 388 C 141 387, 210, 393, 275, 387 C 266 345, 287, 300, 260, 274 C 205 274, 154, 273, 102, 273 C 99 260, 100, 246, 99, 233 C 114 230, 128, 230, 142, 230 C 151 224, 146, 212, 148, 204 C 123 197, 97, 200, 73, 198" fill="#00ff00" aria-label="Environmental path" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M 302 199 C 301 207, 301, 215, 301, 223 C 370 229, 446, 218, 508, 230 C 498 277, 524, 338, 485, 359 C 433 361, 382, 361, 332, 361 C 330 319, 329, 279, 329, 239 C 324 229, 314, 234, 307, 232 C 303 283, 298, 342, 304, 391 C 380 382, 463, 403, 527, 379 C 519 314, 537, 248, 516, 197 C 441 199, 372, 199, 304, 199" fill="#00ff00" aria-label="Social path" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M 586 455 C 497 509, 379, 484, 281, 524 C 247 519, 289, 510, 294, 502 C 245 507, 201, 530, 149, 532 C 93 535, 45, 525, 0, 506 C 0 518, 0, 530, 0, 542 C 34 572, 112, 574, 175, 571 C 301 522, 426, 521, 560, 494 C 582 492, 603, 480, 589, 454" fill="#ef3340" aria-label="Governance path" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M 560 528 C 433 539, 291, 556, 164, 597 C 282 598, 387, 597, 508, 597 C 535 595, 622, 527, 563, 520" fill="#21468b" aria-label="AI element 1" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M 593 488 C 451 526, 311, 520, 178, 575 C 123 572, 66, 580, 24, 558 C 54 606, 109, 597, 159, 597 C 299 549, 449, 539, 585, 521 C 595 512, 591, 497, 593, 487" fill="#ffffff" aria-label="AI element 2" stroke="#000033" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M 164 199 C 159 206, 159, 223, 164, 230 C 201 228, 243, 235, 276, 227 C 274 215, 279, 205, 270, 200 C 234 198, 201, 199, 166, 198" fill="#00ff00" aria-label="Environmental highlight" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M 164 199 C 159 206, 159, 223, 164, 230 C 201 228, 243, 235, 276, 227 C 274 215, 279, 205, 270, 200 C 234 198, 201, 199, 166, 198" fill="#00ff00" aria-label="Environmental highlight" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
 </svg>

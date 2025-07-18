@@ -1,0 +1,195 @@
+---
+title: "Security Architecture"
+description: "Security measures and best practices in 3WM"
+icon: "shield"
+---
+
+
+## Security Overview
+
+3WM implements multiple layers of security to protect sensitive financial data.
+
+<Warning>
+  Security is critical when handling financial documents. Always follow best practices and keep security measures up to date.
+</Warning>
+
+## Security Layers
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock">
+    JWT-based authentication with refresh tokens
+  </Card>
+  
+  <Card title="Authorization" icon="user-shield">
+    Role-based access control (RBAC)
+  </Card>
+  
+  <Card title="Encryption" icon="key">
+    Data encrypted at rest and in transit
+  </Card>
+  
+  <Card title="Audit Logging" icon="scroll">
+    Comprehensive audit trail of all actions
+  </Card>
+</CardGroup>
+
+## Authentication
+
+### JWT Implementation
+
+```python
+# Token generation
+def create_access_token(user_id: str) -> str:
+    payload = {
+        "sub": user_id,
+        "exp": datetime.utcnow() + timedelta(minutes=30),
+        "iat": datetime.utcnow(),
+        "type": "access"
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+```
+
+### Token Security
+- Short-lived access tokens (30 minutes)
+- Long-lived refresh tokens (7 days)
+- Tokens stored in httpOnly cookies
+- CSRF protection enabled
+
+## Authorization
+
+### RBAC Model
+
+<Tabs>
+  <Tab title="User Roles">
+    - **Viewer**: Read-only access
+    - **Operator**: Upload and process documents
+    - **Admin**: Full system access
+    - **API**: Machine-to-machine access
+  </Tab>
+  
+  <Tab title="Permissions">
+    ```python
+    ROLE_PERMISSIONS = {
+        "viewer": ["read:documents", "read:reports"],
+        "operator": ["read:*", "write:documents", "execute:ocr"],
+        "admin": ["*"],
+        "api": ["read:*", "write:*", "execute:*"]
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Data Protection
+
+### Encryption at Rest
+- Database encryption using AES-256
+- File storage encryption in Supabase
+- Encrypted backups
+
+### Encryption in Transit
+- TLS 1.3 for all API communications
+- Certificate pinning for mobile apps
+- Encrypted websocket connections
+
+## API Security
+
+### Rate Limiting
+```python
+# Per-endpoint rate limits
+RATE_LIMITS = {
+    "/api/v1/upload": "50/hour",
+    "/api/v1/agent/query": "100/hour",
+    "/api/v1/auth/login": "10/hour"
+}
+```
+
+### Input Validation
+- Schema validation with Pydantic
+- File type verification
+- SQL injection prevention
+- XSS protection
+
+## Infrastructure Security
+
+### Network Security
+- VPC isolation
+- Private subnets for databases
+- WAF rules for common attacks
+- DDoS protection
+
+### Container Security
+```dockerfile
+# Run as non-root user
+USER appuser
+
+# Read-only filesystem
+RUN chmod -R 755 /app
+
+# Security scanning
+RUN trivy fs --no-progress /
+```
+
+## Compliance
+
+### GDPR Compliance
+- Right to erasure implementation
+- Data portability exports
+- Consent management
+- Privacy by design
+
+### Audit Trail
+```python
+@audit_log
+async def process_document(file: UploadFile, user: User):
+    # All actions logged with:
+    # - User ID
+    # - Timestamp
+    # - Action type
+    # - Resource ID
+    # - IP address
+```
+
+## Security Headers
+
+```python
+# Security middleware
+app.add_middleware(
+    SecurityHeadersMiddleware,
+    headers={
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "X-XSS-Protection": "1; mode=block",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Content-Security-Policy": "default-src 'self'"
+    }
+)
+```
+
+## Incident Response
+
+### Detection
+- Real-time monitoring
+- Anomaly detection
+- Failed login tracking
+- Suspicious pattern alerts
+
+### Response Plan
+1. **Identify**: Detect and assess the incident
+2. **Contain**: Isolate affected systems
+3. **Eradicate**: Remove the threat
+4. **Recover**: Restore normal operations
+5. **Review**: Post-incident analysis
+
+## Best Practices
+
+1. **Regular Updates**: Keep all dependencies updated
+2. **Security Scanning**: Automated vulnerability scanning
+3. **Penetration Testing**: Annual security audits
+4. **Employee Training**: Security awareness programs
+5. **Backup Testing**: Regular restore drills
+
+## Next Steps
+
+- [Configuration Guide](/3wm-project/getting-started/configuration) - Security settings
+- [Deployment Security](/3wm-project/deployment/overview) - Production security
+- [API Authentication](/3wm-project/api-reference/authentication) - Auth implementation 

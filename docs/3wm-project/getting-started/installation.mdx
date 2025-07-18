@@ -1,0 +1,363 @@
+---
+title: 'Installation Guide'
+description: 'Complete setup instructions for 3WM'
+icon: 'download'
+---
+
+# Installation Guide
+
+This guide walks you through setting up 3WM on your local machine or server.
+
+## Prerequisites
+
+<CardGroup cols={2}>
+  <Card title="Python 3.13+" icon="python">
+    Required for backend services
+  </Card>
+  
+  <Card title="Node.js 22+" icon="node">
+    Required for frontend (uses Bun)
+  </Card>
+  
+  <Card title="PostgreSQL 15+" icon="database">
+    Main database for application data
+  </Card>
+  
+  <Card title="Docker (Optional)" icon="docker">
+    For containerized deployment
+  </Card>
+</CardGroup>
+
+## Quick Start with Docker
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/sky-dust-intelligence/3wm.git
+    cd 3wm
+    ```
+  </Step>
+  
+  <Step title="Configure Environment">
+    ```bash
+    # Backend configuration
+    cd 3WM-backend
+    cp .env.example .env
+    # Edit .env with your settings
+    
+    # Frontend configuration
+    cd ../client
+    cp .env.example .env.local
+    # Edit .env.local with your settings
+    ```
+  </Step>
+  
+  <Step title="Start Services">
+    ```bash
+    # From the backend directory
+    cd ../3WM-backend
+    docker-compose up -d
+    ```
+  </Step>
+  
+  <Step title="Verify Installation">
+    - Backend API: http://localhost:8000
+    - Frontend: http://localhost:3000
+    - API Docs: http://localhost:8000/docs
+  </Step>
+</Steps>
+
+## Manual Installation
+
+### Backend Setup
+
+<Tabs>
+  <Tab title="Using UV (Recommended)">
+    ```bash
+    # Install UV package manager
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Clone and enter backend directory
+    cd 3WM-backend
+    
+    # Create virtual environment and install dependencies
+    uv venv
+    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+    uv sync
+    
+    # Setup database
+    alembic upgrade head
+    
+    # Run development server
+    uvicorn app.main:app --reload
+    ```
+  </Tab>
+  
+  <Tab title="Using pip">
+    ```bash
+    # Create virtual environment
+    cd 3WM-backend
+    python -m venv .venv
+    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+    
+    # Install dependencies
+    pip install -r requirements.txt
+    
+    # Setup database
+    alembic upgrade head
+    
+    # Run development server
+    uvicorn app.main:app --reload
+    ```
+  </Tab>
+</Tabs>
+
+### Frontend Setup
+
+```bash
+# Navigate to client directory
+cd client
+
+# Install Bun (if not already installed)
+curl -fsSL https://bun.sh/install | bash
+
+# Install dependencies
+bun install
+
+# Copy PDF worker files
+bun run postinstall
+
+# Run development server
+bun run dev
+```
+
+## Environment Configuration
+
+### Backend Environment Variables
+
+Create `.env` file in the backend directory:
+
+```env
+# Application
+APP_NAME="3WM Invoice Automation"
+ENVIRONMENT=development
+DEBUG=true
+LOG_LEVEL=INFO
+
+# API Keys
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/3wm
+REDIS_URL=redis://localhost:6379
+
+# Authentication
+JWT_SECRET_KEY=your-secret-key-here
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_MINUTES=30
+
+# LangFuse (Observability)
+LANGFUSE_PUBLIC_KEY=pk-...
+LANGFUSE_SECRET_KEY=sk-...
+LANGFUSE_HOST=https://cloud.langfuse.com
+
+# MCP Server
+MCP_SERVER_URL=http://localhost:3001
+
+# Email Integration (Optional)
+OUTLOOK_CLIENT_ID=...
+OUTLOOK_CLIENT_SECRET=...
+OUTLOOK_TENANT_ID=...
+
+# External APIs (Optional)
+VAT_VALIDATION_API_KEY=...
+SUPPLIER_INFO_API_KEY=...
+```
+
+### Frontend Environment Variables
+
+Create `.env.local` file in the client directory:
+
+```env
+# API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
+
+# CopilotKit
+NEXT_PUBLIC_COPILOT_CLOUD_API_KEY=...
+
+# Feature Flags
+NEXT_PUBLIC_ENABLE_PDF_VIEWER=true
+NEXT_PUBLIC_ENABLE_COPILOT=true
+```
+
+## Database Setup
+
+### PostgreSQL with Docker
+
+```bash
+# Run PostgreSQL
+docker run -d \
+  --name 3wm-postgres \
+  -e POSTGRES_USER=3wm \
+  -e POSTGRES_PASSWORD=3wm_password \
+  -e POSTGRES_DB=3wm \
+  -p 5432:5432 \
+  postgres:15-alpine
+
+# Run migrations
+cd 3WM-backend
+alembic upgrade head
+```
+
+### Manual PostgreSQL Setup
+
+```sql
+-- Create database and user
+CREATE DATABASE "3wm";
+CREATE USER "3wm_user" WITH PASSWORD 'secure_password';
+GRANT ALL PRIVILEGES ON DATABASE "3wm" TO "3wm_user";
+
+-- Enable required extensions
+\c 3wm
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+```
+
+## Optional Services
+
+### Redis (for caching and sessions)
+
+```bash
+docker run -d \
+  --name 3wm-redis \
+  -p 6379:6379 \
+  redis:7-alpine
+```
+
+### LangFuse (for LLM observability)
+
+<Card title="LangFuse Setup" icon="chart-line">
+  1. Sign up at [cloud.langfuse.com](https://cloud.langfuse.com)
+  2. Create a new project
+  3. Copy API keys to `.env`
+  4. Traces will appear automatically
+</Card>
+
+### Monitoring Stack
+
+```bash
+# Prometheus + Grafana
+cd 3WM-backend
+docker-compose -f docker-compose.monitoring.yml up -d
+```
+
+## Verification Steps
+
+### 1. Check Backend Health
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# API documentation
+open http://localhost:8000/docs
+```
+
+### 2. Check Frontend
+
+```bash
+# Development server should be running
+open http://localhost:3000
+```
+
+### 3. Test Authentication
+
+```bash
+# Register a user
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "password123"}'
+
+# Login
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "password123"}'
+```
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Python version mismatch">
+    **Problem**: `Python 3.13+ is required`
+    
+    **Solution**:
+    ```bash
+    # Install Python 3.13 using pyenv
+    pyenv install 3.13.0
+    pyenv local 3.13.0
+    ```
+  </Accordion>
+  
+  <Accordion title="Database connection failed">
+    **Problem**: `could not connect to server`
+    
+    **Solution**:
+    - Ensure PostgreSQL is running
+    - Check DATABASE_URL in .env
+    - Verify firewall settings
+  </Accordion>
+  
+  <Accordion title="Bun installation issues">
+    **Problem**: `bun: command not found`
+    
+    **Solution**:
+    ```bash
+    # Install Bun
+    curl -fsSL https://bun.sh/install | bash
+    # Restart terminal or source profile
+    source ~/.bashrc
+    ```
+  </Accordion>
+  
+  <Accordion title="Missing API keys">
+    **Problem**: `OpenAI API key not found`
+    
+    **Solution**:
+    - Set OPENAI_API_KEY in .env
+    - Ensure .env is loaded
+    - Restart the application
+  </Accordion>
+</AccordionGroup>
+
+## Production Deployment
+
+For production deployment, see:
+- [Docker Deployment](/3wm-project/deployment/docker)
+- [Kubernetes Deployment](/3wm-project/deployment/kubernetes)
+- [Production Best Practices](/3wm-project/deployment/production)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/3wm-project/getting-started/quickstart">
+    5-minute guide to process your first invoice
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/3wm-project/getting-started/configuration">
+    Detailed configuration options
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/3wm-project/api-reference/overview">
+    Explore the API endpoints
+  </Card>
+  
+  <Card title="Architecture" icon="sitemap" href="/3wm-project/architecture/overview">
+    Understand system design
+  </Card>
+</CardGroup>
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

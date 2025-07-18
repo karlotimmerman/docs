@@ -1,0 +1,436 @@
+---
+title: 'API Overview'
+description: 'Complete reference for the 3WM REST API'
+icon: 'code'
+---
+
+# API Overview
+
+The 3WM API is built with FastAPI and provides comprehensive endpoints for invoice automation, document processing, and AI-powered queries.
+
+## Base URL
+
+```
+https://api.skydust.app/api/v1
+```
+
+For local development:
+```
+http://localhost:8000/api/v1
+```
+
+## Authentication
+
+The API uses JWT (JSON Web Token) authentication:
+
+```bash
+# Login to get access token
+curl -X POST https://api.skydust.app/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "your-password"
+  }'
+
+# Use token in subsequent requests
+curl -X GET https://api.skydust.app/api/v1/invoices \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Token Management
+
+<CardGroup cols={2}>
+  <Card title="Access Token" icon="key">
+    - Valid for 30 minutes
+    - Used for API requests
+    - Contains user claims
+    - Stateless authentication
+  </Card>
+  
+  <Card title="Refresh Token" icon="rotate">
+    - Valid for 7 days
+    - Used to get new access token
+    - Stored securely
+    - Can be revoked
+  </Card>
+</CardGroup>
+
+## API Documentation
+
+### Interactive Documentation
+
+<Tabs>
+  <Tab title="Swagger UI">
+    Access interactive API documentation at:
+    ```
+    https://api.skydust.app/docs
+    ```
+    
+    Features:
+    - Try out endpoints directly
+    - View request/response schemas
+    - Download OpenAPI spec
+    - Authentication testing
+  </Tab>
+  
+  <Tab title="ReDoc">
+    Alternative documentation at:
+    ```
+    https://api.skydust.app/redoc
+    ```
+    
+    Features:
+    - Clean, readable format
+    - Better for printing
+    - Search functionality
+    - Deep linking
+  </Tab>
+</Tabs>
+
+### OpenAPI Specification
+
+Download the OpenAPI 3.0 specification:
+```bash
+curl https://api.skydust.app/openapi.json -o openapi.json
+```
+
+## Core Endpoints
+
+### Authentication
+
+<CardGroup cols={2}>
+  <Card title="POST /auth/register" icon="user-plus">
+    Register new user account
+  </Card>
+  
+  <Card title="POST /auth/login" icon="sign-in">
+    Login and get access token
+  </Card>
+  
+  <Card title="POST /auth/refresh" icon="rotate">
+    Refresh access token
+  </Card>
+  
+  <Card title="POST /auth/logout" icon="sign-out">
+    Logout and invalidate tokens
+  </Card>
+</CardGroup>
+
+### Document Processing
+
+<CardGroup cols={2}>
+  <Card title="POST /upload" icon="upload">
+    Upload document for processing
+  </Card>
+  
+  <Card title="GET /documents/{id}" icon="file">
+    Get processed document details
+  </Card>
+  
+  <Card title="GET /documents" icon="files">
+    List all documents with filters
+  </Card>
+  
+  <Card title="DELETE /documents/{id}" icon="trash">
+    Delete a document
+  </Card>
+</CardGroup>
+
+### Invoice Operations
+
+<CardGroup cols={2}>
+  <Card title="GET /invoices" icon="file-invoice">
+    List invoices with filtering
+  </Card>
+  
+  <Card title="GET /invoices/{id}" icon="eye">
+    Get invoice details
+  </Card>
+  
+  <Card title="PUT /invoices/{id}" icon="edit">
+    Update invoice data
+  </Card>
+  
+  <Card title="POST /invoices/{id}/approve" icon="check">
+    Approve invoice
+  </Card>
+</CardGroup>
+
+### AI Agent
+
+<CardGroup cols={2}>
+  <Card title="POST /agent/query" icon="message">
+    Natural language query
+  </Card>
+  
+  <Card title="GET /agent/suggestions" icon="lightbulb">
+    Get query suggestions
+  </Card>
+</CardGroup>
+
+### 3-Way Matching
+
+<CardGroup cols={2}>
+  <Card title="POST /matching/validate" icon="link">
+    Perform 3-way match
+  </Card>
+  
+  <Card title="GET /matching/rules" icon="scale-balanced">
+    Get matching rules
+  </Card>
+</CardGroup>
+
+## Request Format
+
+### Headers
+
+Required headers for authenticated endpoints:
+
+```http
+Authorization: Bearer YOUR_ACCESS_TOKEN
+Content-Type: application/json
+Accept: application/json
+```
+
+### Request Body
+
+All POST/PUT requests use JSON:
+
+```json
+{
+  "field1": "value1",
+  "field2": "value2",
+  "nested": {
+    "field3": "value3"
+  }
+}
+```
+
+## Response Format
+
+### Success Response
+
+```json
+{
+  "status": "success",
+  "data": {
+    // Response data
+  },
+  "meta": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "version": "1.0"
+  }
+}
+```
+
+### Error Response
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input data",
+    "details": [
+      {
+        "field": "email",
+        "message": "Invalid email format"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "request_id": "req_123456"
+  }
+}
+```
+
+## Status Codes
+
+| Code | Meaning | Usage |
+|------|---------|-------|
+| 200 | OK | Successful GET, PUT |
+| 201 | Created | Successful POST |
+| 204 | No Content | Successful DELETE |
+| 400 | Bad Request | Invalid input |
+| 401 | Unauthorized | Missing/invalid token |
+| 403 | Forbidden | Insufficient permissions |
+| 404 | Not Found | Resource not found |
+| 409 | Conflict | Duplicate resource |
+| 422 | Unprocessable | Validation error |
+| 429 | Too Many Requests | Rate limit exceeded |
+| 500 | Server Error | Internal error |
+
+## Rate Limiting
+
+The API implements rate limiting to ensure fair usage:
+
+<Card title="Rate Limits" icon="gauge">
+  - **Anonymous**: 10 requests/minute
+  - **Authenticated**: 100 requests/minute
+  - **Premium**: 1000 requests/minute
+  
+  Rate limit headers:
+  - `X-RateLimit-Limit`: Maximum requests
+  - `X-RateLimit-Remaining`: Requests remaining
+  - `X-RateLimit-Reset`: Reset timestamp
+</Card>
+
+## Pagination
+
+List endpoints support pagination:
+
+```bash
+GET /api/v1/invoices?page=1&page_size=20&sort_by=created_at&order=desc
+```
+
+Response includes pagination metadata:
+
+```json
+{
+  "data": [...],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total_items": 150,
+    "total_pages": 8,
+    "has_next": true,
+    "has_prev": false
+  }
+}
+```
+
+## Filtering
+
+Use query parameters for filtering:
+
+```bash
+# Filter invoices by status and date range
+GET /api/v1/invoices?status=pending&date_from=2024-01-01&date_to=2024-01-31
+
+# Search with text query
+GET /api/v1/invoices?search=ACME&vendor_id=123
+
+# Multiple values
+GET /api/v1/invoices?status=pending,approved&amount_min=1000
+```
+
+## Webhooks
+
+Configure webhooks for async events:
+
+```json
+{
+  "url": "https://your-app.com/webhook",
+  "events": ["invoice.processed", "invoice.approved"],
+  "secret": "your-webhook-secret"
+}
+```
+
+### Webhook Events
+
+<CardGroup cols={2}>
+  <Card title="invoice.processed" icon="check-circle">
+    Document processing complete
+  </Card>
+  
+  <Card title="invoice.approved" icon="thumbs-up">
+    Invoice approved
+  </Card>
+  
+  <Card title="invoice.rejected" icon="times-circle">
+    Invoice rejected
+  </Card>
+  
+  <Card title="matching.complete" icon="link">
+    3-way matching finished
+  </Card>
+</CardGroup>
+
+## Error Codes
+
+Common error codes and their meanings:
+
+| Code | Description | Action |
+|------|-------------|--------|
+| `AUTH_INVALID_CREDENTIALS` | Invalid email/password | Check credentials |
+| `AUTH_TOKEN_EXPIRED` | Access token expired | Refresh token |
+| `VALIDATION_ERROR` | Input validation failed | Check request data |
+| `RESOURCE_NOT_FOUND` | Resource doesn't exist | Verify ID |
+| `DUPLICATE_RESOURCE` | Resource already exists | Use different identifier |
+| `INSUFFICIENT_PERMISSIONS` | Lacking required permission | Check user role |
+| `RATE_LIMIT_EXCEEDED` | Too many requests | Wait and retry |
+
+## SDK Support
+
+Official SDKs available:
+
+<CardGroup cols={3}>
+  <Card title="Python SDK" icon="python">
+    ```bash
+    pip install 3wm-sdk
+    ```
+  </Card>
+  
+  <Card title="JavaScript SDK" icon="js">
+    ```bash
+    npm install @skydust/3wm-sdk
+    ```
+  </Card>
+  
+  <Card title="Go SDK" icon="golang">
+    ```bash
+    go get github.com/sky-dust-intelligence/3wm-go
+    ```
+  </Card>
+</CardGroup>
+
+## API Versioning
+
+The API uses URL versioning:
+
+- Current version: `v1`
+- Base URL: `/api/v1`
+- Version in header: `X-API-Version: 1.0`
+
+### Deprecation Policy
+
+- 6 months notice before deprecation
+- Deprecated endpoints return warning header
+- Migration guide provided
+- Backward compatibility maintained
+
+## Best Practices
+
+<Steps>
+  <Step title="Use HTTPS">
+    Always use HTTPS in production
+  </Step>
+  
+  <Step title="Handle Errors">
+    Implement proper error handling for all status codes
+  </Step>
+  
+  <Step title="Respect Rate Limits">
+    Implement exponential backoff for rate limits
+  </Step>
+  
+  <Step title="Paginate Results">
+    Use pagination for large result sets
+  </Step>
+  
+  <Step title="Cache Responses">
+    Cache GET responses when appropriate
+  </Step>
+</Steps>
+
+## Next Steps
+
+- [Authentication](/3wm-project/api-reference/authentication) - Auth endpoints
+- [Upload API](/3wm-project/api-reference/upload) - Document upload
+- [Agent API](/3wm-project/api-reference/agent) - AI queries
+- [Postman Collection](https://api.skydust.app/postman) - Import to Postman
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

@@ -1,0 +1,133 @@
+---
+title: Welkom bij 3WM AI Documentverwerking
+description: Enterprise factuurautomatisering aangedreven door AI met 3-weg matching
+---
+
+# Welkom bij 3WM AI Documentverwerking
+
+3WM is een geavanceerd AI-gestuurd documentverwerkingssysteem dat factuurverwerking automatiseert met intelligente 3-weg matching mogelijkheden.
+
+<CardGroup cols={2}>
+  <Card
+    title="Snelstart"
+    icon="rocket"
+    href="/docs/3wm-project/getting-started/quickstart"
+  >
+    Ga binnen 5 minuten aan de slag met 3WM
+  </Card>
+  <Card
+    title="Overzicht"
+    icon="book"
+    href="/docs/3wm-project/overview"
+  >
+    Leer meer over de mogelijkheden van 3WM
+  </Card>
+  <Card
+    title="API Referentie"
+    icon="code"
+    href="/docs/3wm-project/api-reference/overview"
+  >
+    Integreer 3WM in uw applicaties
+  </Card>
+  <Card
+    title="Architectuur"
+    icon="building"
+    href="/docs/3wm-project/architecture/overview"
+  >
+    Begrijp de technische architectuur
+  </Card>
+</CardGroup>
+
+## Belangrijkste Functionaliteiten
+
+<AccordionGroup>
+  <Accordion title="AI-gestuurde Documentverwerking">
+    Automatische extractie van factuurgegevens met behulp van geavanceerde AI-modellen en OCR-fallback voor gescande documenten.
+  </Accordion>
+  
+  <Accordion title="Intelligente 3-Weg Matching">
+    Automatische matching van facturen met inkooporders en ontvangstbewijzen voor naadloze verificatie.
+  </Accordion>
+  
+  <Accordion title="E-mail Integratie">
+    Directe integratie met Microsoft Outlook voor automatische verwerking van facturen uit e-mailbijlagen.
+  </Accordion>
+  
+  <Accordion title="LangGraph Workflow Orchestratie">
+    Krachtige agent-gebaseerde architectuur voor complexe documentverwerkingsworkflows.
+  </Accordion>
+</AccordionGroup>
+
+## Technologie Stack
+
+<Tabs>
+  <Tab title="Backend">
+    - **Framework**: FastAPI (Python 3.13+)
+    - **AI/ML**: LangChain 0.3.22+, LangGraph 0.3.21+
+    - **Database**: Supabase (PostgreSQL Cloud)
+    - **Cache**: Redis
+    - **Monitoring**: Langfuse, Prometheus, Grafana
+  </Tab>
+  
+  <Tab title="Frontend">
+    - **Framework**: Next.js 14 met TypeScript
+    - **AI Integratie**: CopilotKit 1.9.3+
+    - **UI Componenten**: Radix UI, Tailwind CSS
+    - **Package Manager**: Bun
+  </Tab>
+  
+  <Tab title="Integraties">
+    - **E-mail**: Microsoft Outlook API
+    - **Boekhouding**: AccountView Export
+    - **Opslag**: Supabase Storage
+    - **Authenticatie**: Supabase Auth met JWT
+  </Tab>
+</Tabs>
+
+## Waarom 3WM?
+
+<CardGroup cols={3}>
+  <Card title="99% Nauwkeurigheid" icon="chart-line">
+    AI-modellen getraind op duizenden facturen voor optimale extractie
+  </Card>
+  <Card title="5x Sneller" icon="bolt">
+    Verminder verwerkingstijd van uren naar minuten
+  </Card>
+  <Card title="Enterprise-Ready" icon="shield">
+    Schaalbaar, veilig en compliant met Nederlandse wetgeving
+  </Card>
+</CardGroup>
+
+## Aan de Slag
+
+```bash
+# Clone de repository
+git clone https://github.com/sky-dust-intelligence/3wm-backend.git
+
+# Installeer met Docker Compose
+docker-compose up -d
+
+# Of installeer handmatig
+uv venv
+source .venv/bin/activate  # Op Windows: .venv\Scripts\activate
+uv pip install -e .
+```
+
+## Community & Support
+
+<CardGroup cols={2}>
+  <Card
+    title="GitHub"
+    icon="github"
+    href="https://github.com/sky-dust-intelligence/3wm"
+  >
+    Bekijk de broncode en draag bij
+  </Card>
+  <Card
+    title="Slack Community"
+    icon="slack"
+    href="https://skydust.ai/slack"
+  >
+    Word lid van onze community
+  </Card>
+</CardGroup> 

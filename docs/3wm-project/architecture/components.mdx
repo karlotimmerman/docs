@@ -1,0 +1,146 @@
+---
+title: "Component Architecture"
+description: "Detailed breakdown of 3WM system components"
+icon: "puzzle-piece"
+---
+
+
+## Component Overview
+
+The 3WM system is built with a modular architecture where each component has a specific responsibility.
+
+## Core Components
+
+<CardGroup cols={2}>
+  <Card title="API Gateway" icon="server">
+    FastAPI-based REST API handling all client requests
+  </Card>
+  
+  <Card title="OCR Service" icon="eye">
+    Document text extraction using DocTR and TrOCR
+  </Card>
+  
+  <Card title="AI Engine" icon="brain">
+    LangGraph agents for extraction and queries
+  </Card>
+  
+  <Card title="Data Layer" icon="database">
+    Multi-database architecture for different data types
+  </Card>
+</CardGroup>
+
+## API Gateway
+
+The FastAPI gateway serves as the single entry point for all client requests.
+
+### Responsibilities
+- Request routing and validation
+- Authentication and authorization
+- Rate limiting and throttling
+- Response formatting
+- Error handling
+
+### Key Modules
+```python
+app/
+├── api/          # API endpoints
+├── core/         # Core functionality
+├── middleware/   # Request middleware
+└── main.py       # Application entry
+```
+
+## OCR Service
+
+Handles document text extraction with multiple engines.
+
+<Tabs>
+  <Tab title="DocTR Engine">
+    - Primary OCR engine
+    - Optimized for printed text
+    - Fast processing (2-3s per page)
+    - Supports multiple languages
+  </Tab>
+  
+  <Tab title="TrOCR Engine">
+    - Fallback OCR engine
+    - Better for handwritten text
+    - Transformer-based architecture
+    - Higher accuracy but slower
+  </Tab>
+</Tabs>
+
+## AI Engine
+
+The AI engine uses LangGraph to orchestrate multiple specialized agents.
+
+### Agent Types
+
+1. **Extraction Agent**
+   - Extracts structured data from text
+   - Handles European formats
+   - Provides confidence scores
+
+2. **Enrichment Agent**
+   - Adds vendor information
+   - Links historical data
+   - Detects patterns
+
+3. **Validation Agent**
+   - Verifies extracted data
+   - Checks business rules
+   - Flags anomalies
+
+4. **Query Agent**
+   - Handles natural language queries
+   - Accesses multiple data sources
+   - Maintains conversation context
+
+## Data Layer
+
+### PostgreSQL
+- User management
+- Session storage
+- Document metadata
+- Audit logs
+
+### Neo4j
+- Vendor relationships
+- Fraud patterns
+- Network analysis
+- Graph algorithms
+
+### Supabase
+- Vector embeddings
+- File storage
+- Real-time updates
+- Edge functions
+
+### Redis
+- Response caching
+- Rate limiting
+- Session cache
+- Pub/sub messaging
+
+## Integration Points
+
+Each component communicates through well-defined interfaces:
+
+```python
+# Example: OCR to AI Engine
+ocr_result = await ocr_service.process(document)
+extraction = await ai_engine.extract(ocr_result.text)
+enriched = await graph_service.enrich(extraction)
+```
+
+## Scaling Considerations
+
+- **Stateless Design**: All components are stateless
+- **Horizontal Scaling**: Add more instances as needed
+- **Queue-Based**: Background tasks use queues
+- **Caching**: Aggressive caching at multiple levels
+
+## Next Steps
+
+- [Data Flow](/3wm-project/architecture/data-flow) - Request lifecycle
+- [Security](/3wm-project/architecture/security) - Security implementation
+- [API Design](/3wm-project/api-reference/overview) - API architecture 

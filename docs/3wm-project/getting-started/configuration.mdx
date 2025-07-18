@@ -1,0 +1,385 @@
+---
+title: "Configuration Guide"
+description: "Complete configuration reference for 3WM"
+icon: "gear"
+---
+
+
+## Environment Configuration
+
+3WM uses environment variables for configuration. Copy `.env.example` to `.env` and configure as needed.
+
+## Core Settings
+
+### Application Settings
+
+```env
+# Environment: development, staging, production
+ENVIRONMENT=development
+
+# API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+API_BASE_URL=http://localhost:8000
+
+# Security
+SECRET_KEY=your-secret-key-min-32-chars
+CORS_ORIGINS=["http://localhost:3000", "http://localhost:8000"]
+TRUSTED_HOSTS=["localhost", "127.0.0.1"]
+
+# Debug (never true in production)
+DEBUG=false
+```
+
+### Database Configuration
+
+<Tabs>
+  <Tab title="PostgreSQL">
+    ```env
+    # Primary database for users, sessions, metadata
+    DATABASE_URL=postgresql://user:password@localhost:5432/3wm_db
+    
+    # Connection pool settings
+    DB_POOL_SIZE=20
+    DB_MAX_OVERFLOW=40
+    DB_POOL_TIMEOUT=30
+    ```
+  </Tab>
+  
+  <Tab title="Neo4j">
+    ```env
+    # Neo4j for vendor graphs
+    NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
+    NEO4J_USER=neo4j
+    NEO4J_PASSWORD=your-password
+    
+    # Neo4j settings
+    NEO4J_MAX_CONNECTION_LIFETIME=3600
+    NEO4J_MAX_CONNECTION_POOL_SIZE=50
+    NEO4J_CONNECTION_TIMEOUT=30
+    ```
+  </Tab>
+  
+  <Tab title="Supabase">
+    ```env
+    # Supabase for vectors and storage
+    SUPABASE_URL=https://your-project.supabase.co
+    SUPABASE_KEY=your-anon-key
+    SUPABASE_SERVICE_KEY=your-service-key
+    
+    # Storage settings
+    SUPABASE_STORAGE_BUCKET=invoices
+    SUPABASE_MAX_FILE_SIZE=52428800  # 50MB
+    ```
+  </Tab>
+  
+  <Tab title="Redis">
+    ```env
+    # Redis for caching and rate limiting
+    REDIS_URL=redis://localhost:6379/0
+    REDIS_PASSWORD=optional-password
+    
+    # Cache settings
+    CACHE_TTL=3600  # 1 hour
+    RATE_LIMIT_ENABLED=true
+    ```
+  </Tab>
+</Tabs>
+
+## AI Configuration
+
+### OpenAI Settings
+
+```env
+# OpenAI API
+OPENAI_API_KEY=sk-your-api-key
+OPENAI_ORGANIZATION=optional-org-id
+
+# Model selection
+EXTRACTION_MODEL=gpt-4-turbo-preview
+QUERY_MODEL=gpt-4-turbo-preview
+EMBEDDING_MODEL=text-embedding-3-small
+
+# Model parameters
+EXTRACTION_TEMPERATURE=0.1
+QUERY_TEMPERATURE=0.3
+MAX_TOKENS=4000
+```
+
+### LangChain Settings
+
+```env
+# LangChain configuration
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your-langsmith-key
+LANGCHAIN_PROJECT=3wm-production
+
+# Agent settings
+AGENT_MAX_ITERATIONS=10
+AGENT_TIMEOUT=60
+AGENT_MEMORY_SIZE=50
+```
+
+## Authentication
+
+### JWT Configuration
+
+```env
+# JWT settings
+JWT_SECRET_KEY=your-jwt-secret-min-32-chars
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Session settings
+SESSION_COOKIE_SECURE=true  # HTTPS only
+SESSION_COOKIE_HTTPONLY=true
+SESSION_COOKIE_SAMESITE=lax
+```
+
+### OAuth (Optional)
+
+```env
+# Google OAuth
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+
+# Microsoft OAuth
+MICROSOFT_CLIENT_ID=your-client-id
+MICROSOFT_CLIENT_SECRET=your-client-secret
+```
+
+## OCR Configuration
+
+```env
+# OCR engine selection
+OCR_ENGINE=doctr  # doctr or trocr
+OCR_FALLBACK_ENGINE=trocr
+
+# OCR settings
+OCR_CONFIDENCE_THRESHOLD=0.85
+OCR_ENABLE_PREPROCESSING=true
+OCR_LANGUAGES=["en", "nl", "de", "fr"]
+OCR_MAX_PAGES=10
+OCR_TIMEOUT=30
+```
+
+## Feature Flags
+
+```env
+# Feature toggles
+ENABLE_REGISTRATION=true
+ENABLE_WEBHOOKS=true
+ENABLE_BATCH_PROCESSING=true
+ENABLE_GRAPH_ANALYTICS=true
+ENABLE_FRAUD_DETECTION=true
+ENABLE_EMAIL_NOTIFICATIONS=false
+
+# Experimental features
+ENABLE_VOICE_QUERIES=false
+ENABLE_MOBILE_SCANNING=false
+```
+
+## Performance Settings
+
+### Rate Limiting
+
+```env
+# Rate limit configuration
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_DEFAULT=100/hour
+RATE_LIMIT_UPLOAD=50/hour
+RATE_LIMIT_QUERY=500/hour
+
+# Per-user overrides (JSON)
+RATE_LIMIT_OVERRIDES='{"premium": "1000/hour"}'
+```
+
+### Worker Configuration
+
+```env
+# Async workers
+WORKERS=4  # Number of worker processes
+WORKER_CLASS=uvicorn.workers.UvicornWorker
+WORKER_CONNECTIONS=1000
+WORKER_TIMEOUT=60
+
+# Background tasks
+CELERY_BROKER_URL=redis://localhost:6379/1
+CELERY_RESULT_BACKEND=redis://localhost:6379/2
+```
+
+## Monitoring
+
+### Logging
+
+```env
+# Logging configuration
+LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR
+LOG_FORMAT=json  # json or text
+LOG_FILE=/var/log/3wm/app.log
+LOG_MAX_SIZE=100MB
+LOG_BACKUP_COUNT=10
+
+# Structured logging
+LOG_INCLUDE_CONTEXT=true
+LOG_INCLUDE_TRACE_ID=true
+```
+
+### Metrics
+
+```env
+# Prometheus metrics
+PROMETHEUS_ENABLED=true
+METRICS_PORT=9090
+METRICS_PATH=/metrics
+
+# Custom metrics
+TRACK_API_USAGE=true
+TRACK_OCR_PERFORMANCE=true
+TRACK_AI_COSTS=true
+```
+
+### Error Tracking
+
+```env
+# Sentry configuration (optional)
+SENTRY_DSN=https://your-key@sentry.io/project
+SENTRY_ENVIRONMENT=production
+SENTRY_TRACES_SAMPLE_RATE=0.1
+```
+
+## Email Configuration
+
+```env
+# SMTP settings
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_USE_TLS=true
+
+# Email settings
+EMAIL_FROM=noreply@3wm.ai
+EMAIL_FROM_NAME=3WM System
+```
+
+## Storage Configuration
+
+### Local Storage
+
+```env
+# File storage
+UPLOAD_DIR=/var/lib/3wm/uploads
+TEMP_DIR=/tmp/3wm
+MAX_UPLOAD_SIZE=52428800  # 50MB
+
+# File retention
+RETENTION_DAYS=365
+ARCHIVE_ENABLED=true
+ARCHIVE_PATH=/var/lib/3wm/archive
+```
+
+### Cloud Storage
+
+```env
+# S3-compatible storage (optional)
+S3_ENABLED=false
+S3_BUCKET=3wm-documents
+S3_REGION=eu-west-1
+S3_ACCESS_KEY=your-access-key
+S3_SECRET_KEY=your-secret-key
+S3_ENDPOINT=https://s3.amazonaws.com
+```
+
+## Security Configuration
+
+<Warning>
+  Never commit `.env` files to version control. Use `.env.example` as a template.
+</Warning>
+
+### Security Headers
+
+```env
+# Security headers
+SECURITY_HEADERS_ENABLED=true
+HSTS_ENABLED=true
+HSTS_MAX_AGE=31536000
+CSP_ENABLED=true
+CSP_POLICY="default-src 'self'"
+```
+
+### API Security
+
+```env
+# API security
+API_KEY_ENABLED=false  # For machine-to-machine
+API_KEY_HEADER=X-API-Key
+ALLOWED_IPS=[]  # Empty = all allowed
+
+# Request validation
+MAX_REQUEST_SIZE=10MB
+REQUEST_TIMEOUT=30
+```
+
+## Development Settings
+
+<Tip>
+  Use different `.env` files for different environments: `.env.development`, `.env.staging`, `.env.production`
+</Tip>
+
+### Development Tools
+
+```env
+# Development settings
+RELOAD=true  # Auto-reload on code changes
+TESTING=false
+MOCK_EXTERNAL_APIS=false
+
+# Database
+CREATE_TEST_DATA=true
+SEED_DATABASE=true
+```
+
+### Debug Settings
+
+```env
+# Debug options
+DEBUG_SQL=false
+DEBUG_REDIS=false
+DEBUG_NEO4J=false
+PROFILE_REQUESTS=false
+```
+
+## Configuration Best Practices
+
+1. **Use Strong Secrets**: Generate cryptographically secure keys
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. **Environment-Specific Files**: Maintain separate configs
+   ```
+   .env.development
+   .env.staging
+   .env.production
+   ```
+
+3. **Validate Configuration**: Check on startup
+   ```python
+   from app.core.config import settings
+   settings.validate()
+   ```
+
+4. **Secure Storage**: Use secret management tools in production
+   - AWS Secrets Manager
+   - HashiCorp Vault
+   - Kubernetes Secrets
+
+5. **Regular Rotation**: Rotate secrets periodically
+
+## Next Steps
+
+- [Installation Guide](/3wm-project/getting-started/installation) - Initial setup
+- [Quick Start](/3wm-project/getting-started/quickstart) - Get running quickly
+- [Deployment Guide](/3wm-project/deployment/overview) - Production configuration 

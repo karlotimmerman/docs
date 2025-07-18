@@ -1,0 +1,335 @@
+---
+title: "AI Agent API"
+description: "Natural language queries and conversational interface"
+icon: "robot"
+---
+
+
+## Query Documents
+
+Ask questions about your documents in natural language.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/agent/query \
+  -H "Authorization: Bearer your-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is the total amount of invoices from ACME Corp this month?",
+    "context": {
+      "include_graph": true,
+      "include_history": true
+    }
+  }'
+```
+
+```python Python
+response = requests.post(
+    "http://localhost:8000/api/v1/agent/query",
+    json={
+        "query": "Show me all unpaid invoices over €1000",
+        "context": {
+            "include_graph": True,
+            "include_history": True
+        }
+    },
+    headers={"Authorization": f"Bearer {token}"}
+)
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/agent/query`
+
+### Request Body
+
+<ParamField body="query" type="string" required>
+  Natural language question about your documents
+</ParamField>
+
+<ParamField body="context" type="object" optional>
+  Additional context for the query
+  
+  <ParamField body="include_graph" type="boolean" default="true">
+    Include Neo4j graph data in search
+  </ParamField>
+  
+  <ParamField body="include_history" type="boolean" default="true">
+    Include conversation history
+  </ParamField>
+  
+  <ParamField body="filters" type="object">
+    Optional filters to apply
+  </ParamField>
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json Success - Data Query
+{
+  "status": "success",
+  "data": {
+    "response": "Based on the invoices in the system, ACME Corp has sent 3 invoices this month totaling €4,250.00:\n\n1. INV-2024-001: €1,250.00 (Paid)\n2. INV-2024-015: €1,500.00 (Pending)\n3. INV-2024-023: €1,500.00 (Pending)\n\nTotal pending amount: €3,000.00",
+    "sources": [
+      {
+        "document_id": "123e4567-e89b-41d4-a716-446655440000",
+        "invoice_number": "INV-2024-001",
+        "relevance": 0.95
+      }
+    ],
+    "tools_used": ["database_search", "calculation"],
+    "confidence": 0.92
+  }
+}
+```
+
+```json Success - Analysis Query
+{
+  "status": "success",
+  "data": {
+    "response": "I've analyzed the payment patterns for your vendors. Here are the key insights:\n\n1. **Payment Timeline**: Most vendors are paid within 25-30 days\n2. **Early Payment**: 15% of invoices are paid within 10 days\n3. **Late Payments**: Only 5% of invoices exceed 45 days\n\nWould you like me to identify specific vendors with unusual payment patterns?",
+    "visualization": {
+      "type": "bar_chart",
+      "data": {
+        "labels": ["0-10 days", "11-20 days", "21-30 days", "31-45 days", "45+ days"],
+        "values": [15, 25, 45, 10, 5]
+      }
+    },
+    "follow_up_suggestions": [
+      "Show vendors with longest payment times",
+      "Compare to industry standards",
+      "Identify cost savings opportunities"
+    ]
+  }
+}
+```
+</ResponseExample>
+
+## Conversation History
+
+Retrieve previous conversations.
+
+<RequestExample>
+```bash cURL
+curl -X GET http://localhost:8000/api/v1/agent/conversations \
+  -H "Authorization: Bearer your-token"
+```
+</RequestExample>
+
+### Endpoint
+
+`GET /api/v1/agent/conversations`
+
+### Query Parameters
+
+<ParamField query="limit" type="integer" default="10">
+  Number of conversations to return
+</ParamField>
+
+<ParamField query="offset" type="integer" default="0">
+  Pagination offset
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json
+{
+  "status": "success",
+  "data": {
+    "conversations": [
+      {
+        "id": "conv_123",
+        "created_at": "2024-01-20T10:00:00Z",
+        "last_message": "What are the total expenses for Q1?",
+        "message_count": 5,
+        "summary": "Q1 expense analysis"
+      }
+    ],
+    "total": 42,
+    "has_more": true
+  }
+}
+```
+</ResponseExample>
+
+## Get Conversation
+
+Retrieve a specific conversation with full history.
+
+<RequestExample>
+```bash cURL
+curl -X GET http://localhost:8000/api/v1/agent/conversations/conv_123 \
+  -H "Authorization: Bearer your-token"
+```
+</RequestExample>
+
+### Response
+
+<ResponseExample>
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "conv_123",
+    "created_at": "2024-01-20T10:00:00Z",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Show me all invoices from January",
+        "timestamp": "2024-01-20T10:00:00Z"
+      },
+      {
+        "role": "assistant",
+        "content": "I found 24 invoices from January 2024...",
+        "timestamp": "2024-01-20T10:00:05Z",
+        "tools_used": ["database_search"],
+        "sources": [...]
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+## Execute Tool
+
+Direct tool execution for advanced users.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/agent/tools/execute \
+  -H "Authorization: Bearer your-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool": "vendor_analysis",
+    "parameters": {
+      "vendor_name": "ACME Corp",
+      "include_graph": true,
+      "depth": 2
+    }
+  }'
+```
+</RequestExample>
+
+### Available Tools
+
+<CodeGroup>
+```json Database Search
+{
+  "tool": "database_search",
+  "parameters": {
+    "query": "SELECT * FROM invoices WHERE vendor_id = ?",
+    "params": ["vendor_123"],
+    "limit": 100
+  }
+}
+```
+
+```json Vector Search
+{
+  "tool": "vector_search",
+  "parameters": {
+    "query": "office supplies from Amsterdam",
+    "threshold": 0.8,
+    "limit": 10
+  }
+}
+```
+
+```json Graph Query
+{
+  "tool": "graph_query",
+  "parameters": {
+    "cypher": "MATCH (v:Vendor)-[:ISSUED]->(i:Invoice) RETURN v, i",
+    "params": {},
+    "limit": 50
+  }
+}
+```
+
+```json Fraud Analysis
+{
+  "tool": "fraud_detection",
+  "parameters": {
+    "vendor_id": "vendor_123",
+    "check_types": ["iban_change", "amount_anomaly", "duplicate"]
+  }
+}
+```
+</CodeGroup>
+
+## Query Types
+
+The AI agent understands various query types:
+
+### Data Retrieval
+- "Show me all invoices from [vendor]"
+- "What's the total amount for [month]?"
+- "List unpaid invoices over [amount]"
+
+### Analysis
+- "Analyze spending patterns"
+- "Compare this month to last month"
+- "Find unusual transactions"
+
+### Predictions
+- "When will this invoice likely be paid?"
+- "Predict next month's expenses"
+- "Estimate quarterly totals"
+
+### Actions
+- "Categorize these invoices"
+- "Flag suspicious transactions"
+- "Generate journal entries"
+
+## Advanced Features
+
+### Multi-Step Queries
+
+The agent can handle complex, multi-step queries:
+
+```json
+{
+  "query": "Find all vendors with increasing invoice amounts over the last 6 months, then check if any have changed their bank accounts"
+}
+```
+
+### Contextual Follow-ups
+
+Continue conversations with context:
+
+```json
+{
+  "query": "What about just the ones over €5000?",
+  "conversation_id": "conv_123"
+}
+```
+
+### Export Results
+
+Export query results in various formats:
+
+```json
+{
+  "query": "Export all Q1 invoices to Excel",
+  "export_format": "xlsx"
+}
+```
+
+## Rate Limits
+
+- **Queries per minute**: 30
+- **Queries per hour**: 500
+- **Max query length**: 1000 characters
+- **Max conversation history**: 50 messages
+
+## Best Practices
+
+1. **Be Specific**: Include relevant details in queries
+2. **Use Filters**: Add date ranges or amounts to narrow results
+3. **Check Sources**: Review the sources provided in responses
+4. **Follow Up**: Use conversation context for complex analyses
+5. **Monitor Usage**: Track API usage to avoid rate limits 

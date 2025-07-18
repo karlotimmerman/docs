@@ -1,97 +1,110 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: '3WM Documentation'
+description: 'AI-powered document intelligence for invoice processing'
 ---
 
-## Setting up
+# 3WM AI Document Intelligence
 
-Get your documentation site up and running in minutes.
+Welcome to the official documentation for 3WM, an advanced AI-powered document intelligence system by Sky Dust.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
+<CardGroup cols={2}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Getting Started"
+    icon="rocket"
+    href="/3wm-project/getting-started/quickstart"
   >
-    Edit your docs locally and preview them in real time.
+    Get up and running with 3WM in 5 minutes
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="Features"
+    icon="sparkles"
+    href="/3wm-project/overview"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    Explore OCR, AI agents, and knowledge graphs
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
+    title="API Reference"
     icon="code"
-    href="/essentials/code"
+    href="/3wm-project/api-reference/overview"
   >
-    Add sample code to demonstrate how to use your product.
+    Complete API documentation with examples
   </Card>
   <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
+    title="Deployment"
+    icon="server"
+    href="/3wm-project/deployment/overview"
   >
-    Display images and other media.
+    Production deployment guides
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+</CardGroup>
+
+## Why 3WM?
+
+<CardGroup cols={3}>
+  <Card title="99.9% Accuracy" icon="bullseye">
+    Industry-leading accuracy for invoice data extraction
   </Card>
-</Columns>
+  <Card title="10 Second Processing" icon="bolt">
+    Fast document processing from upload to structured data
+  </Card>
+  <Card title="AI-Powered" icon="brain">
+    Natural language queries and intelligent automation
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Core Features
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+- **Advanced OCR**: State-of-the-art text extraction with DocTR and TrOCR
+- **AI Agents**: LangGraph-powered agents for intelligent document analysis
+- **Knowledge Graph**: Neo4j integration for relationship mapping
+- **Vector Search**: Semantic search and duplicate detection
+- **Multi-Database**: Optimized data storage across PostgreSQL, Neo4j, and Redis
+- **Enterprise Ready**: JWT auth, rate limiting, monitoring, and scalability
+
+## Quick Example
+
+```bash
+# Upload an invoice
+curl -X POST https://api.skydust.app/api/v1/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@invoice.pdf"
+
+# Query with natural language
+curl -X POST https://api.skydust.app/api/v1/agent/query \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"query": "What is the total amount of invoices from ACME Corp this month?"}'
+```
+
+## Architecture
+
+3WM uses a modern microservices architecture designed for scalability:
+
+- FastAPI backend for high-performance REST APIs
+- LangChain/LangGraph for AI agent orchestration
+- Docker containerization for easy deployment
+- Kubernetes ready for enterprise scale
+
+## Get Started
+
+<Steps>
+  <Step title="Install 3WM">
+    Follow our [installation guide](/3wm-project/getting-started/installation) to set up your environment
+  </Step>
+  <Step title="Configure Services">
+    Set up your API keys and database connections using our [configuration guide](/3wm-project/getting-started/configuration)
+  </Step>
+  <Step title="Process Your First Invoice">
+    Use our [quickstart tutorial](/3wm-project/getting-started/quickstart) to process your first document
+  </Step>
+</Steps>
+
+## Support
+
+- **Documentation**: You're here! 📚
+- **GitHub**: [github.com/sky-dust-intelligence/3wm](https://github.com/sky-dust-intelligence/3wm)
+- **Email**: support@skydust.io
+- **Website**: [skydust.io](https://skydust.io)
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)*

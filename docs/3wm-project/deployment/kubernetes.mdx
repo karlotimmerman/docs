@@ -1,0 +1,447 @@
+---
+title: 'Kubernetes Deployment'
+description: 'Deploy 3WM on Kubernetes for production scale'
+icon: 'ship'
+---
+
+# Kubernetes Deployment
+
+Deploy the 3WM AI Document Intelligence system on Kubernetes for production-grade scalability and reliability.
+
+## Prerequisites
+
+<Card title="Required Tools" icon="tools">
+  - Kubernetes cluster (1.24+)
+  - kubectl configured
+  - Helm 3.x installed
+  - 16GB RAM minimum across nodes
+  - Storage class for persistent volumes
+</Card>
+
+## Architecture Overview
+
+<img
+  style={{ borderRadius: '0.5rem' }}
+  src="/images/k8s-architecture.png"
+  alt="3WM Kubernetes Architecture"
+/>
+
+The Kubernetes deployment includes:
+- **API Deployment**: Scalable FastAPI instances
+- **Worker Deployment**: Background processing pods
+- **StatefulSets**: PostgreSQL, Neo4j, Redis
+- **Ingress**: NGINX with SSL termination
+- **Monitoring**: Prometheus and Grafana
+
+## Quick Deploy with Helm
+
+<Steps>
+  <Step title="Add Helm Repository">
+    ```bash
+    helm repo add skydust https://charts.skydust.io
+    helm repo update
+    ```
+  </Step>
+
+  <Step title="Create Namespace">
+    ```bash
+    kubectl create namespace 3wm-prod
+    kubectl config set-context --current --namespace=3wm-prod
+    ```
+  </Step>
+
+  <Step title="Configure Values">
+    Create `values-prod.yaml`:
+    ```yaml
+    api:
+      replicas: 3
+      resources:
+        requests:
+          memory: "2Gi"
+          cpu: "1000m"
+        limits:
+          memory: "4Gi"
+          cpu: "2000m"
+    
+    worker:
+      replicas: 2
+      resources:
+        requests:
+          memory: "4Gi"
+          cpu: "2000m"
+    
+    postgresql:
+      enabled: true
+      persistence:
+        size: 50Gi
+        storageClass: "fast-ssd"
+    
+    neo4j:
+      enabled: true
+      persistence:
+        size: 100Gi
+    
+    redis:
+      enabled: true
+      persistence:
+        size: 10Gi
+    ```
+  </Step>
+
+  <Step title="Deploy">
+    ```bash
+    helm install 3wm skydust/3wm \
+      -f values-prod.yaml \
+      --set global.openaiApiKey=$OPENAI_API_KEY \
+      --wait
+    ```
+  </Step>
+</Steps>
+
+## Manual Deployment
+
+### ConfigMaps and Secrets
+
+```yaml k8s/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: 3wm-config
+data:
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  LOG_LEVEL: "INFO"
+  REDIS_HOST: "redis-service"
+  NEO4J_URI: "bolt://neo4j-service:7687"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: 3wm-secrets
+type: Opaque
+stringData:
+  OPENAI_API_KEY: "sk-..."
+  POSTGRES_PASSWORD: "secure-password"
+  JWT_SECRET_KEY: "your-secret-key"
+```
+
+### API Deployment
+
+```yaml k8s/api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 3wm-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: 3wm-api
+  template:
+    metadata:
+      labels:
+        app: 3wm-api
+    spec:
+      containers:
+      - name: api
+        image: skydust/3wm-api:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: 3wm-config
+        - secretRef:
+            name: 3wm-secrets
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+```
+
+### Worker Deployment
+
+```yaml k8s/worker-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 3wm-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: 3wm-worker
+  template:
+    metadata:
+      labels:
+        app: 3wm-worker
+    spec:
+      containers:
+      - name: worker
+        image: skydust/3wm-worker:latest
+        command: ["python", "-m", "app.worker"]
+        envFrom:
+        - configMapRef:
+            name: 3wm-config
+        - secretRef:
+            name: 3wm-secrets
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+```
+
+## Database StatefulSets
+
+### PostgreSQL
+
+```yaml k8s/postgres-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "3wm"
+        - name: POSTGRES_USER
+          value: "3wm_user"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: 3wm-secrets
+              key: POSTGRES_PASSWORD
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: "fast-ssd"
+      resources:
+        requests:
+          storage: 50Gi
+```
+
+## Ingress Configuration
+
+```yaml k8s/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: 3wm-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - api.skydust.app
+    secretName: 3wm-tls
+  rules:
+  - host: api.skydust.app
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: 3wm-api-service
+            port:
+              number: 80
+```
+
+## Autoscaling
+
+### Horizontal Pod Autoscaler
+
+```yaml k8s/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: 3wm-api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: 3wm-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+## Monitoring Setup
+
+### ServiceMonitor for Prometheus
+
+```yaml k8s/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: 3wm-api-monitor
+spec:
+  selector:
+    matchLabels:
+      app: 3wm-api
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+```
+
+## Backup Strategy
+
+<Tabs>
+  <Tab title="PostgreSQL Backup">
+    ```yaml
+    apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: postgres-backup
+    spec:
+      schedule: "0 2 * * *"
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: postgres-backup
+                image: postgres:15-alpine
+                command:
+                - /bin/sh
+                - -c
+                - |
+                  pg_dump -h postgres-service -U 3wm_user 3wm | \
+                  gzip > /backup/3wm-$(date +%Y%m%d-%H%M%S).sql.gz
+                volumeMounts:
+                - name: backup
+                  mountPath: /backup
+              volumes:
+              - name: backup
+                persistentVolumeClaim:
+                  claimName: backup-pvc
+    ```
+  </Tab>
+  
+  <Tab title="Neo4j Backup">
+    ```yaml
+    apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: neo4j-backup
+    spec:
+      schedule: "0 3 * * *"
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: neo4j-backup
+                image: neo4j:5.12
+                command:
+                - neo4j-admin
+                - database
+                - dump
+                - neo4j
+                - --to-path=/backup
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+### Common Issues
+
+<Accordion title="Pods not starting">
+  Check events and logs:
+  ```bash
+  kubectl describe pod <pod-name>
+  kubectl logs <pod-name> --previous
+  ```
+</Accordion>
+
+<Accordion title="Database connection issues">
+  Verify services are running:
+  ```bash
+  kubectl get svc
+  kubectl exec -it <api-pod> -- nc -zv postgres-service 5432
+  ```
+</Accordion>
+
+<Accordion title="Storage issues">
+  Check PVC status:
+  ```bash
+  kubectl get pvc
+  kubectl describe pvc <pvc-name>
+  ```
+</Accordion>
+
+## Production Checklist
+
+<Card title="Before Going Live" icon="clipboard-check">
+  - [ ] SSL certificates configured
+  - [ ] Resource limits set appropriately
+  - [ ] Monitoring and alerting active
+  - [ ] Backup jobs scheduled
+  - [ ] Network policies configured
+  - [ ] Pod disruption budgets set
+  - [ ] Secrets encrypted at rest
+  - [ ] RBAC policies applied
+</Card>
+
+## Next Steps
+
+- Review [Production Guide](/3wm-project/deployment/production) for best practices
+- Set up [Monitoring](/3wm-project/deployment/monitoring) dashboards
+- Configure [Backup and Recovery](/3wm-project/deployment/backup) procedures
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

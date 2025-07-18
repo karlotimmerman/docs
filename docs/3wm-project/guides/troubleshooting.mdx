@@ -1,0 +1,498 @@
+---
+title: 'Troubleshooting'
+description: 'Common issues and solutions for 3WM'
+icon: 'wrench'
+---
+
+# Troubleshooting Guide
+
+This guide helps you diagnose and resolve common issues with the 3WM AI Document Intelligence system by Sky Dust.
+
+## Installation Issues
+
+### Docker Compose Fails to Start
+
+<Accordion title="Error: 'docker-compose' command not found">
+  **Solution**: Install Docker Compose v2
+  ```bash
+  # Ubuntu/Debian
+  sudo apt update
+  sudo apt install docker-compose-plugin
+  
+  # macOS with Homebrew
+  brew install docker-compose
+  
+  # Verify installation
+  docker compose version
+  ```
+</Accordion>
+
+<Accordion title="Error: Port already in use">
+  **Problem**: Another service is using port 8000, 5432, 7474, or 6379
+  
+  **Solution**: Either stop the conflicting service or change ports in `.env`:
+  ```bash
+  # Check what's using port 8000
+  sudo lsof -i :8000
+  
+  # Kill the process (replace PID with actual process ID)
+  sudo kill -9 PID
+  
+  # Or change port in .env
+  API_PORT=8001
+  ```
+</Accordion>
+
+<Accordion title="Error: Insufficient memory">
+  **Problem**: Docker doesn't have enough memory allocated
+  
+  **Solution**: Increase Docker memory limit
+  - Docker Desktop: Settings → Resources → Memory → Increase to at least 8GB
+  - Linux: Check available memory with `free -h`
+</Accordion>
+
+### Database Connection Issues
+
+<Accordion title="PostgreSQL connection refused">
+  **Check these common causes**:
+  
+  1. **Service not running**:
+  ```bash
+  docker ps | grep postgres
+  # If not running:
+  docker compose up -d postgres
+  ```
+  
+  2. **Wrong credentials**:
+  ```bash
+  # Verify .env file
+  POSTGRES_USER=your_user
+  POSTGRES_PASSWORD=your_password
+  POSTGRES_DB=your_db
+  ```
+  
+  3. **Network issues**:
+  ```bash
+  # Test connection
+  docker exec -it 3wm-postgres psql -U your_user -d your_db
+  ```
+</Accordion>
+
+<Accordion title="Neo4j authentication failed">
+  **Solution**: Reset Neo4j credentials
+  ```bash
+  # Stop Neo4j
+  docker compose stop neo4j
+  
+  # Remove Neo4j data (WARNING: This deletes all graph data)
+  docker volume rm 3wm_neo4j_data
+  
+  # Start with new credentials
+  docker compose up -d neo4j
+  ```
+</Accordion>
+
+## OCR Processing Issues
+
+### Poor OCR Quality
+
+<Accordion title="Blurry or low-quality scans">
+  **Solutions**:
+  
+  1. **Preprocess images**:
+  ```python
+  # Enable preprocessing in upload
+  curl -X POST https://api.skydust.app/api/v1/upload \
+    -H "Authorization: Bearer YOUR_TOKEN" \
+    -F "file=@invoice.pdf" \
+    -F "preprocess=true" \
+    -F "enhance_quality=true"
+  ```
+  
+  2. **Adjust OCR settings**:
+  ```python
+  # In .env
+  OCR_DPI=300  # Increase for better quality
+  OCR_LANGUAGE=eng+fra+nld  # Add languages
+  OCR_ENGINE=trocr  # Try different engine
+  ```
+</Accordion>
+
+<Accordion title="OCR timeout errors">
+  **Problem**: Large documents timing out
+  
+  **Solutions**:
+  
+  1. **Increase timeout**:
+  ```python
+  # In .env
+  OCR_TIMEOUT=300  # 5 minutes
+  WORKER_TIMEOUT=600  # 10 minutes
+  ```
+  
+  2. **Enable batch processing**:
+  ```python
+  # Split large PDFs
+  curl -X POST https://api.skydust.app/api/v1/upload \
+    -F "file=@large_document.pdf" \
+    -F "batch_size=10" \
+    -F "async=true"
+  ```
+</Accordion>
+
+### Field Extraction Errors
+
+<Accordion title="Missing or incorrect fields">
+  **Debug steps**:
+  
+  1. **Check extraction logs**:
+  ```bash
+  docker logs 3wm-api | grep extraction
+  ```
+  
+  2. **Verify field mappings**:
+  ```python
+  # Get extraction details
+  curl -X GET https://api.skydust.app/api/v1/documents/{id}/extraction \
+    -H "Authorization: Bearer YOUR_TOKEN"
+  ```
+  
+  3. **Update extraction rules**:
+  ```python
+  # Custom field rules
+  {
+    "vendor_specific_rules": {
+      "ACME Corp": {
+        "invoice_number": {
+          "pattern": "INV-\\d{6}",
+          "location": "top-right"
+        }
+      }
+    }
+  }
+  ```
+</Accordion>
+
+## AI Agent Issues
+
+### Agent Not Responding
+
+<Accordion title="Natural language queries failing">
+  **Troubleshooting steps**:
+  
+  1. **Check API key**:
+  ```bash
+  # Verify OpenAI API key is set
+  echo $OPENAI_API_KEY
+  
+  # Test API key
+  curl https://api.openai.com/v1/models \
+    -H "Authorization: Bearer $OPENAI_API_KEY"
+  ```
+  
+  2. **Check rate limits**:
+  ```python
+  # Monitor rate limit headers
+  X-RateLimit-Remaining: 50
+  X-RateLimit-Reset: 1642000000
+  ```
+  
+  3. **Enable debug logging**:
+  ```python
+  # In .env
+  LOG_LEVEL=DEBUG
+  AGENT_DEBUG=true
+  ```
+</Accordion>
+
+<Accordion title="Incorrect query results">
+  **Common causes and fixes**:
+  
+  1. **Outdated embeddings**:
+  ```bash
+  # Regenerate embeddings
+  docker exec -it 3wm-api python -m app.scripts.regenerate_embeddings
+  ```
+  
+  2. **Graph relationships missing**:
+  ```cypher
+  // Check graph integrity
+  MATCH (n) 
+  WHERE NOT (n)--() 
+  RETURN labels(n), count(n)
+  ```
+  
+  3. **Context window exceeded**:
+  ```python
+  # Reduce context size
+  AGENT_MAX_CONTEXT_LENGTH=8000  # Default: 16000
+  ```
+</Accordion>
+
+## Performance Issues
+
+### Slow Processing
+
+<Accordion title="Documents taking too long to process">
+  **Optimization strategies**:
+  
+  1. **Enable Redis caching**:
+  ```bash
+  # Check Redis is running
+  docker exec -it 3wm-redis redis-cli ping
+  # Should return: PONG
+  ```
+  
+  2. **Increase worker count**:
+  ```python
+  # In docker-compose.yml
+  services:
+    worker:
+      deploy:
+        replicas: 4  # Increase from default 2
+  ```
+  
+  3. **Optimize database queries**:
+  ```sql
+  -- Add missing indexes
+  CREATE INDEX idx_documents_status ON documents(status);
+  CREATE INDEX idx_invoices_vendor ON invoices(vendor_id);
+  ```
+</Accordion>
+
+### High Memory Usage
+
+<Accordion title="Container using too much memory">
+  **Solutions**:
+  
+  1. **Set memory limits**:
+  ```yaml
+  # In docker-compose.yml
+  services:
+    api:
+      deploy:
+        resources:
+          limits:
+            memory: 4G
+          reservations:
+            memory: 2G
+  ```
+  
+  2. **Clear cache periodically**:
+  ```bash
+  # Clear Redis cache
+  docker exec -it 3wm-redis redis-cli FLUSHDB
+  
+  # Clean up old documents
+  docker exec -it 3wm-api python -m app.scripts.cleanup_old_documents --days 30
+  ```
+</Accordion>
+
+## Authentication Issues
+
+### Login Problems
+
+<Accordion title="Cannot login with valid credentials">
+  **Debug steps**:
+  
+  1. **Verify user exists**:
+  ```sql
+  -- Check in PostgreSQL
+  SELECT email, is_active FROM users WHERE email = 'user@example.com';
+  ```
+  
+  2. **Reset password**:
+  ```bash
+  docker exec -it 3wm-api python -m app.scripts.reset_password --email user@example.com
+  ```
+  
+  3. **Check JWT settings**:
+  ```python
+  # In .env
+  JWT_SECRET_KEY=your-secret-key  # Must be set
+  JWT_ALGORITHM=HS256
+  JWT_EXPIRATION_MINUTES=30
+  ```
+</Accordion>
+
+### Token Errors
+
+<Accordion title="JWT token invalid or expired">
+  **Solutions**:
+  
+  1. **Refresh token**:
+  ```bash
+  curl -X POST https://api.skydust.app/api/v1/auth/refresh \
+    -H "Content-Type: application/json" \
+    -d '{"refresh_token": "YOUR_REFRESH_TOKEN"}'
+  ```
+  
+  2. **Check token format**:
+  ```python
+  # Correct header format
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+  ```
+</Accordion>
+
+## Deployment Issues
+
+### Container Crashes
+
+<Accordion title="Container keeps restarting">
+  **Diagnostic steps**:
+  
+  1. **Check logs**:
+  ```bash
+  # View last 100 lines
+  docker logs --tail 100 3wm-api
+  
+  # Follow logs in real-time
+  docker logs -f 3wm-api
+  ```
+  
+  2. **Check health status**:
+  ```bash
+  docker inspect 3wm-api | grep -A 10 "Health"
+  ```
+  
+  3. **Common fixes**:
+  ```bash
+  # Rebuild containers
+  docker compose down
+  docker compose build --no-cache
+  docker compose up -d
+  ```
+</Accordion>
+
+### SSL/TLS Issues
+
+<Accordion title="HTTPS not working">
+  **Setup SSL correctly**:
+  
+  1. **Using Let's Encrypt**:
+  ```nginx
+  # In nginx.conf
+  server {
+      listen 443 ssl;
+      server_name api.skydust.app;
+      
+      ssl_certificate /etc/letsencrypt/live/api.skydust.app/fullchain.pem;
+      ssl_certificate_key /etc/letsencrypt/live/api.skydust.app/privkey.pem;
+      
+      location / {
+          proxy_pass http://api:8000;
+      }
+  }
+  ```
+  
+  2. **Using self-signed (development only)**:
+  ```bash
+  openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout nginx-selfsigned.key \
+    -out nginx-selfsigned.crt
+  ```
+</Accordion>
+
+## Data Issues
+
+### Missing Documents
+
+<Accordion title="Uploaded documents not appearing">
+  **Check these areas**:
+  
+  1. **Storage volume**:
+  ```bash
+  # Check if files exist
+  docker exec -it 3wm-api ls -la /app/uploads/
+  
+  # Check disk space
+  df -h
+  ```
+  
+  2. **Database records**:
+  ```sql
+  -- Check document records
+  SELECT id, filename, status, created_at 
+  FROM documents 
+  ORDER BY created_at DESC 
+  LIMIT 10;
+  ```
+  
+  3. **Processing queue**:
+  ```bash
+  # Check Redis queue
+  docker exec -it 3wm-redis redis-cli LLEN document_queue
+  ```
+</Accordion>
+
+### Data Corruption
+
+<Accordion title="Corrupted database or files">
+  **Recovery steps**:
+  
+  1. **Backup first**:
+  ```bash
+  # Backup PostgreSQL
+  docker exec -it 3wm-postgres pg_dump -U user dbname > backup.sql
+  
+  # Backup Neo4j
+  docker exec -it 3wm-neo4j neo4j-admin dump --to=/backups/neo4j-backup.dump
+  ```
+  
+  2. **Check and repair**:
+  ```sql
+  -- PostgreSQL check
+  VACUUM ANALYZE;
+  REINDEX DATABASE dbname;
+  
+  -- Neo4j check
+  CALL dbms.checkConsistency()
+  ```
+</Accordion>
+
+## Getting Help
+
+### Collect Diagnostic Information
+
+When reporting issues, include:
+
+```bash
+# System information
+docker version
+docker compose version
+uname -a
+
+# Container status
+docker compose ps
+
+# Recent logs
+docker compose logs --tail 100 > logs.txt
+
+# Environment (remove sensitive data)
+cat .env | grep -v PASSWORD | grep -v SECRET > env.txt
+```
+
+### Support Channels
+
+- **Documentation**: [docs.skydust.app](https://docs.skydust.app)
+- **GitHub Issues**: [github.com/sky-dust-intelligence/3wm/issues](https://github.com/sky-dust-intelligence/3wm/issues)
+- **Email Support**: support@skydust.io
+
+### Emergency Recovery
+
+If all else fails:
+
+```bash
+# Complete reset (WARNING: Deletes all data)
+docker compose down -v
+rm -rf ./data/*
+docker compose up -d
+
+# Restore from backup
+docker exec -i 3wm-postgres psql -U user dbname < backup.sql
+docker exec -i 3wm-neo4j neo4j-admin load --from=/backups/neo4j-backup.dump
+```
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

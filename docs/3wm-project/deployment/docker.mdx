@@ -1,0 +1,497 @@
+---
+title: "Docker Deployment"
+description: "Deploy 3WM using Docker and Docker Compose"
+icon: "docker"
+---
+
+
+## Overview
+
+Deploy 3WM using Docker for consistent, reproducible deployments across environments.
+
+## Prerequisites
+
+- Docker Engine 20.10+
+- Docker Compose v2.0+
+- 8GB RAM minimum
+- 20GB free disk space
+
+## Quick Start
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/sky-dust-intelligence/3wm.git
+cd 3wm
+```
+
+  <Step title="Configure Environment">
+    ```bash
+    cp .env.example .env
+    # Edit .env with your settings
+    ```
+  </Step>
+  
+  <Step title="Start Services">
+    ```bash
+    docker-compose up -d
+    ```
+  </Step>
+  
+  <Step title="Verify Deployment">
+    ```bash
+    docker-compose ps
+    curl http://localhost:8000/health
+    ```
+  </Step>
+</Steps>
+
+## Docker Compose Configuration
+
+### Production Stack
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    image: 3wm-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/3wm
+      - REDIS_URL=redis://redis:6379/0
+      - NEO4J_URI=bolt://neo4j:7687
+    depends_on:
+      - db
+      - redis
+      - neo4j
+    volumes:
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: 3wm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["graph-data-science"]'
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:
+  neo4j_logs:
+  prometheus_data:
+  grafana_data:
+```
+
+## Dockerfile
+
+### Production Dockerfile
+
+```dockerfile
+# Dockerfile
+FROM python:3.11-slim as builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+# Run application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+## Environment-Specific Configurations
+
+<Tabs>
+  <Tab title="Development">
+    ```yaml
+    # docker-compose.dev.yml
+    version: '3.8'
+    
+    services:
+      app:
+        build:
+          context: .
+          dockerfile: Dockerfile.dev
+        volumes:
+          - .:/app
+        environment:
+          - RELOAD=true
+          - DEBUG=true
+        command: uvicorn app.main:app --reload --host 0.0.0.0
+    ```
+  </Tab>
+  
+  <Tab title="Staging">
+    ```yaml
+    # docker-compose.staging.yml
+    version: '3.8'
+    
+    services:
+      app:
+        environment:
+          - ENVIRONMENT=staging
+          - LOG_LEVEL=DEBUG
+        deploy:
+          replicas: 2
+    ```
+  </Tab>
+  
+  <Tab title="Production">
+    ```yaml
+    # docker-compose.prod.yml
+    version: '3.8'
+    
+    services:
+      app:
+        environment:
+          - ENVIRONMENT=production
+          - LOG_LEVEL=INFO
+        deploy:
+          replicas: 3
+          resources:
+            limits:
+              cpus: '2'
+              memory: 4G
+    ```
+  </Tab>
+</Tabs>
+
+## Deployment Commands
+
+### Build and Deploy
+
+```bash
+# Build image
+docker-compose build
+
+# Start all services
+docker-compose up -d
+
+# Scale application
+docker-compose up -d --scale app=3
+
+# View logs
+docker-compose logs -f app
+
+# Stop services
+docker-compose down
+```
+
+### Environment-Specific Deployment
+
+```bash
+# Development
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+# Staging
+docker-compose -f docker-compose.yml -f docker-compose.staging.yml up
+
+# Production
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+```
+
+## Health Monitoring
+
+### Health Check Endpoint
+
+```python
+# app/main.py
+@app.get("/health")
+async def health_check():
+    """Check service health"""
+    checks = {
+        "database": await check_database(),
+        "redis": await check_redis(),
+        "neo4j": await check_neo4j(),
+        "storage": await check_storage()
+    }
+    
+    status = "healthy" if all(checks.values()) else "unhealthy"
+    
+    return {
+        "status": status,
+        "checks": checks,
+        "version": settings.VERSION,
+        "timestamp": datetime.utcnow()
+    }
+```
+
+### Docker Health Check
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+```
+
+## Volume Management
+
+### Persistent Data
+
+```yaml
+volumes:
+  # Database data
+  postgres_data:
+    driver: local
+  
+  # Cache data
+  redis_data:
+    driver: local
+  
+  # Graph data
+  neo4j_data:
+    driver: local
+  
+  # Uploaded files
+  uploads:
+    driver: local
+    driver_opts:
+      type: none
+      device: /var/lib/3wm/uploads
+      o: bind
+```
+
+### Backup Volumes
+
+```bash
+# Backup PostgreSQL
+docker exec 3wm_db pg_dump -U postgres 3wm > backup.sql
+
+# Backup Neo4j
+docker exec 3wm_neo4j neo4j-admin dump --to=/backups/neo4j.dump
+
+# Backup uploads
+tar -czf uploads-backup.tar.gz /var/lib/3wm/uploads
+```
+
+## Networking
+
+### Custom Network
+
+```yaml
+networks:
+  3wm-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+```
+
+### Service Discovery
+
+Services communicate using Docker's internal DNS:
+- `app` → `http://app:8000`
+- `db` → `postgresql://db:5432`
+- `redis` → `redis://redis:6379`
+- `neo4j` → `bolt://neo4j:7687`
+
+## Security Best Practices
+
+<Warning>
+  Always follow security best practices in production deployments.
+</Warning>
+
+1. **Use Secrets**
+   ```yaml
+   secrets:
+     db_password:
+       external: true
+     jwt_secret:
+       external: true
+   ```
+
+2. **Non-Root User**
+   ```dockerfile
+   RUN useradd -m appuser
+   USER appuser
+   ```
+
+3. **Read-Only Filesystem**
+   ```yaml
+   app:
+     read_only: true
+     tmpfs:
+       - /tmp
+   ```
+
+4. **Network Isolation**
+   ```yaml
+   networks:
+     frontend:
+     backend:
+       internal: true
+   ```
+
+## Monitoring Setup
+
+### Prometheus Configuration
+
+```yaml
+# prometheus/prometheus.yml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: '3wm-api'
+    static_configs:
+      - targets: ['app:8000']
+    metrics_path: /metrics
+```
+
+### Grafana Dashboards
+
+Import pre-configured dashboards:
+1. API Performance Dashboard
+2. Document Processing Metrics
+3. System Health Overview
+
+## Troubleshooting
+
+### Common Issues
+
+<Tip>
+  Check logs first: `docker-compose logs -f [service]`
+</Tip>
+
+1. **Container Won't Start**
+   ```bash
+   docker-compose logs app
+   docker-compose ps
+   ```
+
+2. **Database Connection Failed**
+   ```bash
+   docker exec -it 3wm_db psql -U postgres
+   ```
+
+3. **Out of Memory**
+   ```bash
+   docker stats
+   docker-compose down
+   docker system prune -a
+   ```
+
+### Debug Mode
+
+```yaml
+app:
+  environment:
+    - DEBUG=true
+    - LOG_LEVEL=DEBUG
+  command: python -m debugpy --listen 0.0.0.0:5678 -m uvicorn app.main:app
+```
+
+## Production Checklist
+
+- [ ] Use specific image tags (not `latest`)
+- [ ] Configure resource limits
+- [ ] Set up health checks
+- [ ] Enable logging aggregation
+- [ ] Configure automatic restarts
+- [ ] Set up monitoring alerts
+- [ ] Implement backup strategy
+- [ ] Use secrets management
+- [ ] Enable SSL/TLS
+- [ ] Configure firewall rules
+
+## Next Steps
+
+- [Kubernetes Deployment](/3wm-project/deployment/kubernetes) - For larger scale
+- [Monitoring Setup](/3wm-project/deployment/monitoring) - Detailed monitoring
+- [Security Guide](/3wm-project/architecture/security) - Security hardening 

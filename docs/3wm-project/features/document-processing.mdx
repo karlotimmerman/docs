@@ -1,0 +1,537 @@
+---
+title: 'Document Processing'
+description: 'AI-powered invoice processing with 3-way matching'
+icon: 'file-invoice'
+---
+
+# Document Processing
+
+3WM's document processing pipeline combines AI-powered extraction with intelligent 3-way matching to automate invoice processing workflows.
+
+## Processing Pipeline
+
+<Steps>
+  <Step title="Document Ingestion">
+    Receive documents via API upload or email integration
+  </Step>
+  
+  <Step title="Text Extraction">
+    Extract text using PDF libraries with OCR fallback
+  </Step>
+  
+  <Step title="AI Field Extraction">
+    Use GPT-4 to identify and extract invoice fields
+  </Step>
+  
+  <Step title="Validation">
+    Validate extracted data against business rules
+  </Step>
+  
+  <Step title="3-Way Matching">
+    Match invoices with POs and goods receipts
+  </Step>
+  
+  <Step title="Approval Routing">
+    Route based on confidence and business rules
+  </Step>
+  
+  <Step title="Integration">
+    Export to AccountView or other systems
+  </Step>
+</Steps>
+
+## Supported Document Types
+
+<CardGroup cols={3}>
+  <Card title="Invoices" icon="file-invoice">
+    - PDF invoices
+    - Scanned invoices
+    - Email attachments
+    - Multi-page documents
+  </Card>
+  
+  <Card title="Purchase Orders" icon="file-contract">
+    - PO documents
+    - Order confirmations
+    - Contracts
+    - Quotes
+  </Card>
+  
+  <Card title="Receipts" icon="receipt">
+    - Goods receipts
+    - Delivery notes
+    - Packing slips
+    - Service confirmations
+  </Card>
+</CardGroup>
+
+## Text Extraction
+
+The system uses a multi-layered approach for text extraction:
+
+### 1. PDF Text Extraction
+
+```python
+# Primary extraction using PyPDF or similar
+async def extract_pdf_text(file_path: str) -> str:
+    """Extract text from PDF using native text layer"""
+    try:
+        with open(file_path, 'rb') as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+        return text
+    except Exception as e:
+        logger.warning(f"PDF extraction failed: {e}")
+        return None
+```
+
+### 2. OCR Fallback
+
+When PDF text extraction fails or returns insufficient text:
+
+```python
+# OCR using Tesseract or cloud services
+async def ocr_fallback(file_path: str) -> str:
+    """Use OCR when PDF text extraction fails"""
+    # Convert PDF to images
+    images = pdf_to_images(file_path)
+    
+    # Apply OCR to each page
+    text = ""
+    for image in images:
+        # Preprocess image for better OCR
+        processed = preprocess_image(image)
+        
+        # Extract text using OCR
+        page_text = pytesseract.image_to_string(
+            processed,
+            lang='eng+nld+deu+fra'  # Multi-language support
+        )
+        text += page_text + "\n"
+    
+    return text
+```
+
+## Field Extraction
+
+The extraction agent uses GPT-4 with structured prompts:
+
+### Invoice Field Extraction
+
+```python
+INVOICE_EXTRACTION_PROMPT = """
+Extract the following fields from this invoice:
+
+Required Fields:
+- invoice_number: The invoice number/ID
+- invoice_date: Date of the invoice (ISO format)
+- due_date: Payment due date (ISO format)
+- vendor_name: Name of the supplier/vendor
+- vendor_vat: VAT/Tax number of vendor
+- vendor_address: Full address of vendor
+- customer_name: Bill-to customer name
+- customer_vat: Customer VAT number
+- po_number: Purchase order reference (if any)
+- currency: Currency code (EUR, USD, etc.)
+
+Line Items (array):
+- description: Product/service description
+- quantity: Quantity ordered
+- unit_price: Price per unit
+- vat_rate: VAT/tax percentage
+- line_total: Total for this line
+
+Totals:
+- subtotal: Total before tax
+- vat_amount: Total tax amount
+- total_amount: Grand total
+
+Return as JSON with confidence scores for each field.
+"""
+```
+
+### Extraction Results
+
+```json
+{
+  "invoice_number": {
+    "value": "INV-2024-001",
+    "confidence": 0.98
+  },
+  "vendor_name": {
+    "value": "Tech Supplies B.V.",
+    "confidence": 0.95
+  },
+  "line_items": [
+    {
+      "description": {
+        "value": "Dell Laptop XPS 15",
+        "confidence": 0.97
+      },
+      "quantity": {
+        "value": 2,
+        "confidence": 0.99
+      },
+      "unit_price": {
+        "value": 1299.00,
+        "confidence": 0.98
+      },
+      "vat_rate": {
+        "value": 21,
+        "confidence": 0.99
+      }
+    }
+  ],
+  "total_amount": {
+    "value": 3143.58,
+    "confidence": 0.99
+  }
+}
+```
+
+## 3-Way Matching
+
+The matching agent performs comprehensive validation:
+
+### Matching Logic
+
+<Tabs>
+  <Tab title="Invoice ↔ PO">
+    ```python
+    def match_invoice_to_po(invoice, po):
+        """Match invoice against purchase order"""
+        
+        matches = {
+            "po_number": invoice.po_number == po.number,
+            "vendor": invoice.vendor_id == po.vendor_id,
+            "total_tolerance": abs(invoice.total - po.total) <= po.total * 0.05,
+            "line_items": match_line_items(invoice.items, po.items),
+            "currency": invoice.currency == po.currency
+        }
+        
+        confidence = sum(1 for m in matches.values() if m) / len(matches)
+        
+        return MatchResult(
+            matched=all(matches.values()),
+            confidence=confidence,
+            details=matches
+        )
+    ```
+  </Tab>
+  
+  <Tab title="Invoice ↔ Receipt">
+    ```python
+    def match_invoice_to_receipt(invoice, receipt):
+        """Match invoice against goods receipt"""
+        
+        matches = {
+            "delivery_ref": invoice.delivery_ref == receipt.number,
+            "quantities": match_quantities(invoice.items, receipt.items),
+            "dates": invoice.date >= receipt.date,
+            "vendor": invoice.vendor_id == receipt.vendor_id
+        }
+        
+        return MatchResult(
+            matched=all(matches.values()),
+            confidence=calculate_confidence(matches)
+        )
+    ```
+  </Tab>
+  
+  <Tab title="3-Way Match">
+    ```python
+    def three_way_match(invoice, po, receipt):
+        """Perform complete 3-way matching"""
+        
+        # Match all three documents
+        invoice_po = match_invoice_to_po(invoice, po)
+        invoice_receipt = match_invoice_to_receipt(invoice, receipt)
+        po_receipt = match_po_to_receipt(po, receipt)
+        
+        # Calculate overall confidence
+        overall_confidence = (
+            invoice_po.confidence * 0.4 +
+            invoice_receipt.confidence * 0.3 +
+            po_receipt.confidence * 0.3
+        )
+        
+        return ThreeWayMatchResult(
+            matched=all([
+                invoice_po.matched,
+                invoice_receipt.matched,
+                po_receipt.matched
+            ]),
+            confidence=overall_confidence,
+            discrepancies=identify_discrepancies(
+                invoice_po, invoice_receipt, po_receipt
+            )
+        )
+    ```
+  </Tab>
+</Tabs>
+
+### Tolerance Configuration
+
+```python
+MATCHING_TOLERANCES = {
+    "amount": {
+        "percentage": 5,  # 5% tolerance
+        "absolute": 100   # Or €100 absolute
+    },
+    "quantity": {
+        "percentage": 2,  # 2% tolerance
+        "absolute": 1     # Or 1 unit
+    },
+    "dates": {
+        "invoice_before_receipt": 30,  # Days
+        "invoice_after_po": 180        # Days
+    }
+}
+```
+
+## Validation Rules
+
+The validation agent applies comprehensive checks:
+
+<CardGroup cols={2}>
+  <Card title="Data Validation" icon="check-circle">
+    - VAT number format and checksum
+    - IBAN validation
+    - Date logic (invoice date <= due date)
+    - Currency code validation
+    - Mathematical accuracy
+  </Card>
+  
+  <Card title="Business Rules" icon="scale-balanced">
+    - Vendor exists in system
+    - PO authorization limits
+    - Budget availability
+    - Duplicate invoice detection
+    - Payment term compliance
+  </Card>
+  
+  <Card title="Compliance Checks" icon="shield-check">
+    - Tax regulation compliance
+    - Invoice completeness
+    - Required fields present
+    - Legal entity validation
+    - Audit trail requirements
+  </Card>
+  
+  <Card title="Fraud Detection" icon="shield-exclamation">
+    - Unusual amount patterns
+    - New vendor verification
+    - IBAN change detection
+    - Suspicious date patterns
+    - Round number analysis
+  </Card>
+</CardGroup>
+
+## Approval Workflow
+
+Based on validation results, documents are routed appropriately:
+
+```python
+def determine_approval_route(validation_result, match_result, amount):
+    """Determine approval workflow based on results"""
+    
+    confidence = (validation_result.confidence + match_result.confidence) / 2
+    
+    if confidence >= 0.95 and amount < 10000:
+        return "auto_approve"
+    elif confidence >= 0.85 and amount < 50000:
+        return "single_approval"
+    elif confidence >= 0.70:
+        return "dual_approval"
+    else:
+        return "manual_review"
+```
+
+### Workflow States
+
+<Steps>
+  <Step title="Auto-Approve">
+    High confidence, low amount → Automatic approval
+  </Step>
+  
+  <Step title="Single Approval">
+    Medium confidence → Manager approval required
+  </Step>
+  
+  <Step title="Dual Approval">
+    Large amounts → Two approvers required
+  </Step>
+  
+  <Step title="Manual Review">
+    Low confidence → Full manual verification
+  </Step>
+  
+  <Step title="Exception Handling">
+    Failed validation → Sent to exceptions queue
+  </Step>
+</Steps>
+
+## Email Integration
+
+Process invoices directly from email:
+
+```python
+# Microsoft Outlook integration
+async def process_outlook_inbox():
+    """Monitor Outlook inbox for invoices"""
+    
+    # Connect to Outlook
+    outlook = OutlookClient(
+        client_id=OUTLOOK_CLIENT_ID,
+        client_secret=OUTLOOK_CLIENT_SECRET,
+        tenant_id=OUTLOOK_TENANT_ID
+    )
+    
+    # Fetch unread emails
+    messages = await outlook.get_unread_messages(
+        folder="Invoices",
+        has_attachments=True
+    )
+    
+    for message in messages:
+        # Process each attachment
+        for attachment in message.attachments:
+            if attachment.name.endswith(('.pdf', '.jpg', '.png')):
+                # Save and process
+                file_path = save_attachment(attachment)
+                await process_document(file_path, {
+                    "source": "email",
+                    "sender": message.sender,
+                    "subject": message.subject,
+                    "received": message.received_date
+                })
+        
+        # Mark as processed
+        await outlook.mark_as_read(message.id)
+```
+
+## Performance Optimization
+
+### Batch Processing
+
+```python
+async def batch_process_invoices(file_paths: List[str]):
+    """Process multiple invoices in parallel"""
+    
+    # Create processing tasks
+    tasks = []
+    for file_path in file_paths:
+        task = asyncio.create_task(
+            process_single_invoice(file_path)
+        )
+        tasks.append(task)
+    
+    # Process with concurrency limit
+    semaphore = asyncio.Semaphore(10)  # Max 10 concurrent
+    
+    async def bounded_process(file_path):
+        async with semaphore:
+            return await process_single_invoice(file_path)
+    
+    results = await asyncio.gather(
+        *[bounded_process(fp) for fp in file_paths],
+        return_exceptions=True
+    )
+    
+    return results
+```
+
+### Caching Strategy
+
+```python
+# Cache frequently accessed data
+@lru_cache(maxsize=1000)
+def get_vendor_by_vat(vat_number: str):
+    """Cache vendor lookups by VAT number"""
+    return db.query(Vendor).filter(
+        Vendor.vat_number == vat_number
+    ).first()
+
+# Redis for distributed caching
+async def get_cached_po(po_number: str):
+    """Get PO from cache or database"""
+    # Check Redis first
+    cached = await redis.get(f"po:{po_number}")
+    if cached:
+        return json.loads(cached)
+    
+    # Fetch from database
+    po = await db.get_purchase_order(po_number)
+    
+    # Cache for future use
+    await redis.setex(
+        f"po:{po_number}",
+        3600,  # 1 hour TTL
+        json.dumps(po.dict())
+    )
+    
+    return po
+```
+
+## Monitoring & Analytics
+
+Track processing performance:
+
+<CardGroup cols={3}>
+  <Card title="Processing Metrics" icon="chart-line">
+    - Documents per hour
+    - Average processing time
+    - Success/failure rates
+    - OCR vs text extraction ratio
+  </Card>
+  
+  <Card title="Accuracy Metrics" icon="bullseye">
+    - Field extraction accuracy
+    - Matching success rate
+    - False positive/negative rates
+    - Confidence score distribution
+  </Card>
+  
+  <Card title="Business Metrics" icon="chart-bar">
+    - Auto-approval rate
+    - Exception rate
+    - Processing cost per invoice
+    - Time to payment
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Document Quality">
+    Ensure high-quality scans (300 DPI minimum) for better OCR results
+  </Step>
+  
+  <Step title="Template Management">
+    Create vendor-specific templates for common invoice formats
+  </Step>
+  
+  <Step title="Regular Validation">
+    Periodically review and update validation rules
+  </Step>
+  
+  <Step title="Exception Handling">
+    Implement clear workflows for handling exceptions
+  </Step>
+  
+  <Step title="Audit Trail">
+    Maintain complete audit logs for compliance
+  </Step>
+</Steps>
+
+## Next Steps
+
+- [AI Agents](/3wm-project/features/ai-agents) - Learn about the AI agents
+- [API Reference](/3wm-project/api-reference/upload) - Upload API documentation
+- [Best Practices](/3wm-project/guides/best-practices) - Optimization tips
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

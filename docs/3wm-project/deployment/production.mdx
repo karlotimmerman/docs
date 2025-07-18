@@ -1,0 +1,492 @@
+---
+title: 'Production Deployment'
+description: 'Best practices for deploying 3WM in production environments'
+icon: 'rocket'
+---
+
+# Production Deployment Guide
+
+This guide covers best practices and considerations for deploying 3WM in production environments.
+
+## Infrastructure Requirements
+
+### Minimum Production Specifications
+
+<CardGroup cols={2}>
+  <Card title="API Servers" icon="server">
+    - **CPU**: 4 cores minimum
+    - **RAM**: 8GB per instance
+    - **Instances**: 3+ for HA
+    - **Storage**: 50GB SSD
+  </Card>
+  
+  <Card title="Worker Nodes" icon="microchip">
+    - **CPU**: 8 cores (AI workloads)
+    - **RAM**: 16GB per instance
+    - **GPU**: Optional (speeds OCR)
+    - **Storage**: 100GB SSD
+  </Card>
+  
+  <Card title="Database Servers" icon="database">
+    - **PostgreSQL**: 8GB RAM, 200GB SSD
+    - **Neo4j**: 16GB RAM, 500GB SSD
+    - **Redis**: 4GB RAM, 50GB SSD
+    - **Backup**: 2TB storage
+  </Card>
+  
+  <Card title="Load Balancer" icon="scale-balanced">
+    - **Type**: Application (Layer 7)
+    - **SSL**: Termination support
+    - **Health checks**: HTTP/HTTPS
+    - **Sticky sessions**: Optional
+  </Card>
+</CardGroup>
+
+## Architecture Patterns
+
+### High Availability Setup
+
+```mermaid
+graph TB
+    subgraph "Load Balancers"
+        LB1[Primary LB]
+        LB2[Secondary LB]
+    end
+    
+    subgraph "API Layer"
+        API1[API Instance 1]
+        API2[API Instance 2]
+        API3[API Instance 3]
+    end
+    
+    subgraph "Worker Layer"
+        W1[Worker 1]
+        W2[Worker 2]
+        W3[Worker 3]
+    end
+    
+    subgraph "Data Layer"
+        PG1[(PostgreSQL Primary)]
+        PG2[(PostgreSQL Replica)]
+        NEO[(Neo4j Cluster)]
+        REDIS[(Redis Sentinel)]
+    end
+    
+    LB1 --> API1
+    LB1 --> API2
+    LB1 --> API3
+    
+    API1 --> PG1
+    API2 --> PG1
+    API3 --> PG1
+    
+    W1 --> REDIS
+    W2 --> REDIS
+    W3 --> REDIS
+```
+
+## Security Configuration
+
+### SSL/TLS Setup
+
+<Tabs>
+  <Tab title="Let's Encrypt">
+    ```nginx
+    server {
+        listen 443 ssl http2;
+        server_name api.skydust.app;
+        
+        ssl_certificate /etc/letsencrypt/live/api.skydust.app/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/api.skydust.app/privkey.pem;
+        
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+        ssl_prefer_server_ciphers on;
+        
+        location / {
+            proxy_pass http://api-backend;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Commercial Certificate">
+    ```nginx
+    server {
+        listen 443 ssl http2;
+        server_name api.skydust.app;
+        
+        ssl_certificate /etc/nginx/ssl/api.skydust.app.crt;
+        ssl_certificate_key /etc/nginx/ssl/api.skydust.app.key;
+        ssl_trusted_certificate /etc/nginx/ssl/ca-bundle.crt;
+        
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        
+        add_header Strict-Transport-Security "max-age=31536000" always;
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Environment Variables
+
+Create a secure `.env.production` file:
+
+```bash
+# API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=4
+LOG_LEVEL=INFO
+
+# Security
+JWT_SECRET_KEY=$(openssl rand -hex 32)
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_MINUTES=30
+CORS_ORIGINS=["https://app.skydust.app"]
+
+# Database URLs (use connection pooling)
+DATABASE_URL=postgresql://user:pass@pg-primary:5432/3wm?pool_size=20
+NEO4J_URI=neo4j://neo4j-cluster:7687
+REDIS_URL=redis://redis-sentinel:6379/0
+
+# AI Services
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4-turbo-preview
+MAX_TOKENS=4000
+
+# Storage
+S3_ENDPOINT=https://s3.amazonaws.com
+S3_BUCKET=3wm-documents-prod
+S3_ACCESS_KEY=AKIA...
+S3_SECRET_KEY=...
+
+# Monitoring
+SENTRY_DSN=https://...@sentry.io/...
+PROMETHEUS_ENABLED=true
+```
+
+## Database Optimization
+
+### PostgreSQL Tuning
+
+```sql
+-- Performance settings for production
+ALTER SYSTEM SET shared_buffers = '4GB';
+ALTER SYSTEM SET effective_cache_size = '12GB';
+ALTER SYSTEM SET maintenance_work_mem = '1GB';
+ALTER SYSTEM SET checkpoint_completion_target = 0.9;
+ALTER SYSTEM SET wal_buffers = '16MB';
+ALTER SYSTEM SET default_statistics_target = 100;
+ALTER SYSTEM SET random_page_cost = 1.1;
+ALTER SYSTEM SET effective_io_concurrency = 200;
+ALTER SYSTEM SET work_mem = '32MB';
+ALTER SYSTEM SET min_wal_size = '2GB';
+ALTER SYSTEM SET max_wal_size = '8GB';
+
+-- Create indexes for common queries
+CREATE INDEX idx_documents_status_created ON documents(status, created_at);
+CREATE INDEX idx_invoices_vendor_date ON invoices(vendor_id, invoice_date);
+CREATE INDEX idx_documents_user_type ON documents(user_id, document_type);
+```
+
+### Neo4j Configuration
+
+```properties
+# neo4j.conf
+dbms.memory.heap.initial_size=8g
+dbms.memory.heap.max_size=8g
+dbms.memory.pagecache.size=8g
+
+# Query performance
+cypher.query_cache_size=1000
+dbms.query_log_enabled=true
+dbms.track_query_cpu_time=true
+
+# Network
+dbms.connector.bolt.thread_pool_min_size=10
+dbms.connector.bolt.thread_pool_max_size=100
+```
+
+## Monitoring Setup
+
+### Health Check Endpoints
+
+```python
+# health_checks.py
+from fastapi import APIRouter, HTTPException
+from app.core.database import check_postgres, check_neo4j, check_redis
+
+router = APIRouter()
+
+@router.get("/health/live")
+async def liveness():
+    """Basic liveness check"""
+    return {"status": "alive", "timestamp": datetime.utcnow()}
+
+@router.get("/health/ready")
+async def readiness():
+    """Comprehensive readiness check"""
+    checks = {
+        "postgres": await check_postgres(),
+        "neo4j": await check_neo4j(),
+        "redis": await check_redis(),
+        "storage": await check_storage()
+    }
+    
+    if not all(checks.values()):
+        raise HTTPException(503, detail=checks)
+    
+    return {"status": "ready", "checks": checks}
+
+@router.get("/health/startup")
+async def startup_probe():
+    """Kubernetes startup probe"""
+    if not app.state.initialized:
+        raise HTTPException(503, "Still initializing")
+    return {"status": "started"}
+```
+
+### Prometheus Metrics
+
+```python
+# metrics.py
+from prometheus_client import Counter, Histogram, Gauge, Info
+
+# Application info
+app_info = Info('app_info', 'Application information')
+app_info.info({
+    'version': '1.0.0',
+    'environment': 'production'
+})
+
+# Request metrics
+request_count = Counter(
+    'http_requests_total',
+    'Total HTTP requests',
+    ['method', 'endpoint', 'status']
+)
+
+request_duration = Histogram(
+    'http_request_duration_seconds',
+    'HTTP request duration',
+    ['method', 'endpoint']
+)
+
+# Business metrics
+documents_processed = Counter(
+    'documents_processed_total',
+    'Total documents processed',
+    ['type', 'status']
+)
+
+active_users = Gauge(
+    'active_users_total',
+    'Currently active users'
+)
+```
+
+## Deployment Checklist
+
+### Pre-deployment
+
+<Steps>
+  <Step title="Security Audit">
+    - [ ] All secrets in environment variables
+    - [ ] SSL certificates valid and installed
+    - [ ] Firewall rules configured
+    - [ ] API rate limiting enabled
+    - [ ] CORS properly configured
+  </Step>
+  
+  <Step title="Performance Testing">
+    - [ ] Load testing completed
+    - [ ] Database queries optimized
+    - [ ] Caching strategy implemented
+    - [ ] CDN configured for static assets
+    - [ ] Connection pooling enabled
+  </Step>
+  
+  <Step title="Backup & Recovery">
+    - [ ] Automated backup jobs scheduled
+    - [ ] Backup restoration tested
+    - [ ] Disaster recovery plan documented
+    - [ ] Data retention policies set
+    - [ ] Point-in-time recovery enabled
+  </Step>
+  
+  <Step title="Monitoring">
+    - [ ] Application metrics exposed
+    - [ ] Log aggregation configured
+    - [ ] Alerts defined and tested
+    - [ ] Dashboards created
+    - [ ] On-call rotation established
+  </Step>
+</Steps>
+
+### Post-deployment
+
+<Steps>
+  <Step title="Verification">
+    ```bash
+    # Check all services are running
+    curl https://api.skydust.app/health/ready
+    
+    # Test document upload
+    curl -X POST https://api.skydust.app/api/v1/upload \
+      -H "Authorization: Bearer $TOKEN" \
+      -F "file=@test-invoice.pdf"
+    
+    # Verify monitoring
+    curl https://api.skydust.app/metrics
+    ```
+  </Step>
+  
+  <Step title="Performance Baseline">
+    Record initial metrics:
+    - Response time p50/p95/p99
+    - Throughput (requests/second)
+    - Error rate
+    - Database query times
+  </Step>
+</Steps>
+
+## Scaling Strategies
+
+### Horizontal Scaling
+
+```yaml
+# Auto-scaling configuration
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: 3wm-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+```
+
+### Database Scaling
+
+<Tabs>
+  <Tab title="Read Replicas">
+    Configure read replicas for PostgreSQL:
+    ```python
+    # database.py
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import QueuePool
+    
+    # Write operations
+    write_engine = create_engine(
+        "postgresql://user:pass@primary:5432/3wm",
+        pool_size=20,
+        max_overflow=40
+    )
+    
+    # Read operations
+    read_engines = [
+        create_engine(f"postgresql://user:pass@replica{i}:5432/3wm")
+        for i in range(1, 4)
+    ]
+    ```
+  </Tab>
+  
+  <Tab title="Sharding">
+    Implement data sharding:
+    ```python
+    def get_shard(document_id: str) -> int:
+        """Determine shard based on document ID"""
+        return hash(document_id) % NUM_SHARDS
+    
+    def get_connection(document_id: str):
+        shard = get_shard(document_id)
+        return connections[f"shard_{shard}"]
+    ```
+  </Tab>
+</Tabs>
+
+## Maintenance Windows
+
+### Zero-downtime Deployments
+
+```bash
+#!/bin/bash
+# Rolling update script
+
+# 1. Deploy to canary
+kubectl set image deployment/3wm-api api=skydust/3wm-api:$NEW_VERSION -n 3wm-canary
+
+# 2. Monitor canary
+sleep 300
+if ! check_canary_health; then
+    kubectl rollout undo deployment/3wm-api -n 3wm-canary
+    exit 1
+fi
+
+# 3. Rolling update production
+kubectl set image deployment/3wm-api api=skydust/3wm-api:$NEW_VERSION -n 3wm-prod
+kubectl rollout status deployment/3wm-api -n 3wm-prod
+
+# 4. Verify
+check_production_health
+```
+
+## Disaster Recovery
+
+### Backup Strategy
+
+<Card title="3-2-1 Backup Rule" icon="shield-check">
+  - **3** copies of important data
+  - **2** different storage media
+  - **1** offsite backup
+  
+  ```bash
+  # Daily backup script
+  #!/bin/bash
+  DATE=$(date +%Y%m%d-%H%M%S)
+  
+  # PostgreSQL
+  pg_dump 3wm | gzip > /backup/postgres/3wm-$DATE.sql.gz
+  
+  # Neo4j
+  neo4j-admin database dump neo4j --to=/backup/neo4j/neo4j-$DATE.dump
+  
+  # Upload to S3
+  aws s3 sync /backup/ s3://3wm-backups/$DATE/
+  
+  # Clean old backups (keep 30 days)
+  find /backup -mtime +30 -delete
+  ```
+</Card>
+
+## Next Steps
+
+- Configure [Monitoring](/3wm-project/deployment/monitoring) for production
+- Review [Security Best Practices](/3wm-project/architecture/security)
+- Set up [CI/CD Pipeline](/3wm-project/deployment/cicd)
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)* 

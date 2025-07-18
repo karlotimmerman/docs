@@ -1,44 +1,63 @@
-# Mintlify Starter Kit
+# 3WM Documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+This repository contains the official documentation for the 3WM AI Document Intelligence system by Sky Dust.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## Overview
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+3WM is an advanced AI-powered document intelligence platform specializing in invoice processing and financial document automation. This documentation provides comprehensive guides for installation, configuration, API usage, and deployment.
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+## Documentation Structure
 
 ```
-npm i -g mint
+docs/
+├── index.mdx                    # Homepage
+├── 3wm-project/
+│   ├── overview.mdx            # System overview
+│   ├── getting-started/        # Installation and setup guides
+│   ├── features/               # Feature documentation
+│   ├── api-reference/          # API documentation
+│   ├── architecture/           # Technical architecture
+│   ├── deployment/             # Deployment guides
+│   └── guides/                 # Best practices and troubleshooting
+└── mint.json                   # Documentation configuration
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+## Local Development
 
+To run the documentation locally:
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
-mint dev
-```
 
-View your local preview at `http://localhost:3000`.
+The documentation will be available at `http://localhost:3000`.
 
-## Publishing changes
+## Contributing
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Need help?
+## Deployment
 
-### Troubleshooting
+The documentation is automatically deployed when changes are pushed to the main branch. The production documentation is available at [docs.skydust.app](https://docs.skydust.app).
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+## Support
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
-- [Mintlify community](https://mintlify.com/community)
+- **GitHub Issues**: [github.com/sky-dust-intelligence/3wm/issues](https://github.com/sky-dust-intelligence/3wm/issues)
+- **Email**: support@skydust.io
+- **Website**: [skydust.io](https://skydust.io)
+
+## License
+
+This documentation is part of the 3WM project by Sky Dust. All rights reserved.
+
+---
+
+*Built with ❤️ by [Sky Dust](https://skydust.io)*

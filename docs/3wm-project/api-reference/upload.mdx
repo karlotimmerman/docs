@@ -1,0 +1,396 @@
+---
+title: "Upload API"
+description: "Document upload and processing endpoints"
+icon: "upload"
+---
+
+
+## Upload Document
+
+Upload and process a document (invoice, ID card, or certificate).
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/upload \
+  -H "Authorization: Bearer your-token" \
+  -F "file=@invoice.pdf"
+```
+
+```python Python
+import requests
+
+with open('invoice.pdf', 'rb') as f:
+    response = requests.post(
+        'http://localhost:8000/api/v1/upload',
+        files={'file': f},
+        headers={'Authorization': 'Bearer your-token'}
+    )
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+
+const response = await fetch('http://localhost:8000/api/v1/upload', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer your-token'
+  },
+  body: formData
+});
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/upload`
+
+### Headers
+
+<ParamField header="Authorization" type="string" optional>
+  Bearer token for authentication. If provided, the document will be associated with your user account.
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `multipart/form-data`
+</ParamField>
+
+### Request Body
+
+<ParamField body="file" type="file" required>
+  The document file to upload. Supported formats:
+  - PDF documents
+  - Images: JPEG, JPG, PNG, TIFF, BMP
+  - Maximum file size: 50MB
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json Success Response
+{
+  "status": "success",
+  "data": {
+    "document_id": "123e4567-e89b-12d3-a456-426614174000",
+    "file_url": "https://your-project.supabase.co/storage/v1/object/public/invoices/2024/01/INV-2024-001.pdf",
+    "document_type": "invoice",
+    "ins_filename": "INV-2024-001_ACME-CORP_2024-01-15_1250-00.pdf",
+    "extracted_fields": {
+      "invoice_number": "INV-2024-001",
+      "date": "2024-01-15",
+      "due_date": "2024-02-15",
+      "vendor": {
+        "name": "ACME Corporation",
+        "address": "123 Business St, Amsterdam, 1017 AB",
+        "vat_number": "NL123456789B01",
+        "iban": "NL91ABNA0417164300"
+      },
+      "customer": {
+        "name": "Your Company B.V.",
+        "address": "456 Client Ave, Rotterdam, 3011 BR",
+        "vat_number": "NL987654321B01"
+      },
+      "line_items": [
+        {
+          "description": "Professional Services",
+          "quantity": 10,
+          "unit_price": 100.00,
+          "vat_rate": 21,
+          "total": 1000.00
+        },
+        {
+          "description": "Software License",
+          "quantity": 1,
+          "unit_price": 250.00,
+          "vat_rate": 21,
+          "total": 250.00
+        }
+      ],
+      "totals": {
+        "subtotal": 1250.00,
+        "vat_amount": 262.50,
+        "total": 1512.50
+      },
+      "currency": "EUR",
+      "payment_terms": "Net 30",
+      "bank_account": "NL91ABNA0417164300"
+    },
+    "confidence_scores": {
+      "overall": 0.95,
+      "invoice_number": 0.98,
+      "date": 0.99,
+      "vendor_name": 0.97,
+      "total_amount": 0.99,
+      "line_items": 0.94
+    },
+    "validation": {
+      "vat_number_valid": true,
+      "iban_valid": true,
+      "totals_match": true,
+      "date_logic_valid": true
+    },
+    "journal_prediction": {
+      "entries": [
+        {
+          "account": "6000",
+          "description": "Professional Services",
+          "debit": 1000.00,
+          "credit": 0
+        },
+        {
+          "account": "6010", 
+          "description": "Software License",
+          "debit": 250.00,
+          "credit": 0
+        },
+        {
+          "account": "1520",
+          "description": "VAT Receivable",
+          "debit": 262.50,
+          "credit": 0
+        },
+        {
+          "account": "1600",
+          "description": "Accounts Payable - ACME Corporation",
+          "debit": 0,
+          "credit": 1512.50
+        }
+      ],
+      "confidence": 0.92
+    },
+    "similar_documents": [
+      {
+        "document_id": "456e7890-e89b-12d3-a456-426614174111",
+        "similarity_score": 0.89,
+        "invoice_number": "INV-2023-987",
+        "vendor": "ACME Corporation",
+        "date": "2023-12-15",
+        "total": 1450.00
+      }
+    ],
+    "processing_time": 2.345,
+    "ocr_method": "doctr",
+    "metadata": {
+      "pages": 1,
+      "file_size": 245632,
+      "mime_type": "application/pdf",
+      "upload_timestamp": "2024-01-15T10:30:00Z"
+    }
+  }
+}
+```
+
+```json Error Response - Invalid File Type
+{
+  "status": "error",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid file type",
+    "details": {
+      "supported_types": ["pdf", "jpeg", "jpg", "png", "tiff", "bmp"],
+      "received_type": "text/plain"
+    }
+  }
+}
+```
+
+```json Error Response - Processing Failed
+{
+  "status": "error",
+  "error": {
+    "code": "PROCESSING_ERROR",
+    "message": "Failed to process document",
+    "details": {
+      "stage": "ocr",
+      "reason": "Unable to extract text from document"
+    }
+  }
+}
+```
+</ResponseExample>
+
+### Response Fields
+
+<ResponseField name="document_id" type="string" required>
+  Unique identifier for the uploaded document
+</ResponseField>
+
+<ResponseField name="file_url" type="string" required>
+  Public URL to access the uploaded file
+</ResponseField>
+
+<ResponseField name="document_type" type="string" required>
+  Type of document detected: `invoice`, `id_card`, or `certificate`
+</ResponseField>
+
+<ResponseField name="ins_filename" type="string" required>
+  INS (Intelligent Naming System) formatted filename
+</ResponseField>
+
+<ResponseField name="extracted_fields" type="object" required>
+  All extracted data from the document
+  
+  <ResponseField name="invoice_number" type="string">
+    Invoice number or reference
+  </ResponseField>
+  
+  <ResponseField name="date" type="string">
+    Invoice date in ISO format
+  </ResponseField>
+  
+  <ResponseField name="vendor" type="object">
+    Vendor/supplier information
+    
+    <ResponseField name="name" type="string">
+      Company name
+    </ResponseField>
+    
+    <ResponseField name="vat_number" type="string">
+      VAT registration number
+    </ResponseField>
+    
+    <ResponseField name="iban" type="string">
+      Bank account number
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="line_items" type="array">
+    Invoice line items
+  </ResponseField>
+  
+  <ResponseField name="totals" type="object">
+    Financial totals
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="confidence_scores" type="object" required>
+  Confidence scores for extracted fields (0-1)
+</ResponseField>
+
+<ResponseField name="validation" type="object" required>
+  Validation results for critical fields
+</ResponseField>
+
+<ResponseField name="journal_prediction" type="object" optional>
+  Predicted journal entries for accounting
+</ResponseField>
+
+<ResponseField name="similar_documents" type="array" optional>
+  Similar documents found via vector search
+</ResponseField>
+
+## Batch Upload
+
+Upload multiple documents in a single request.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/upload/batch \
+  -H "Authorization: Bearer your-token" \
+  -F "files=@invoice1.pdf" \
+  -F "files=@invoice2.pdf" \
+  -F "files=@invoice3.pdf"
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/upload/batch`
+
+### Request Body
+
+<ParamField body="files" type="file[]" required>
+  Array of document files (maximum 10 files per request)
+</ParamField>
+
+### Response
+
+Returns an array of results, one for each uploaded file.
+
+## Get Upload Status
+
+Check the processing status of an uploaded document.
+
+<RequestExample>
+```bash cURL
+curl -X GET http://localhost:8000/api/v1/upload/status/123e4567-e89b-12d3-a456-426614174000 \
+  -H "Authorization: Bearer your-token"
+```
+</RequestExample>
+
+### Endpoint
+
+`GET /api/v1/upload/status/{document_id}`
+
+### Response
+
+<ResponseExample>
+```json Processing
+{
+  "status": "processing",
+  "progress": 65,
+  "stage": "extraction",
+  "estimated_completion": "2024-01-15T10:30:15Z"
+}
+```
+
+```json Completed
+{
+  "status": "completed",
+  "document_id": "123e4567-e89b-12d3-a456-426614174000",
+  "processing_time": 2.345,
+  "result_url": "/api/v1/documents/123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+```json Failed
+{
+  "status": "failed",
+  "error": "OCR processing failed",
+  "stage": "ocr",
+  "retry_available": true
+}
+```
+</ResponseExample>
+
+## Processing Flow
+
+The upload process follows these steps:
+
+1. **File Validation** - Check file type and size
+2. **Storage Upload** - Save to Supabase storage
+3. **OCR Processing** - Extract text using DocTR/TrOCR
+4. **AI Extraction** - Extract structured data with GPT-4
+5. **Validation** - Verify VAT numbers, IBANs, calculations
+6. **Enrichment** - Add vendor data from Neo4j
+7. **Vector Embedding** - Generate embeddings for similarity search
+8. **Journal Prediction** - Predict accounting entries
+9. **Storage** - Save to PostgreSQL and update graphs
+
+## File Naming Convention
+
+The system uses INS (Intelligent Naming System) format:
+
+```
+{INVOICE_NUMBER}_{VENDOR_NAME}_{DATE}_{AMOUNT}.pdf
+```
+
+Example: `INV-2024-001_ACME-CORP_2024-01-15_1250-00.pdf`
+
+## Error Handling
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 400 | Invalid file type | Unsupported file format |
+| 413 | File too large | Exceeds 50MB limit |
+| 422 | Processing failed | OCR or extraction error |
+| 429 | Rate limit exceeded | Too many uploads |
+| 500 | Internal error | Server error |
+
+## Best Practices
+
+1. **File Quality**: Upload high-resolution scans (300 DPI minimum)
+2. **File Size**: Keep files under 10MB for faster processing
+3. **Batch Processing**: Use batch upload for multiple files
+4. **Error Handling**: Implement retry logic for failed uploads
+5. **Webhooks**: Use webhooks for async processing notification 

@@ -1,0 +1,432 @@
+---
+title: "Deployment Overview"
+description: "Deploy 3WM to production environments"
+icon: "rocket"
+---
+
+
+## Deployment Options
+
+3WM supports multiple deployment strategies to fit your infrastructure needs.
+
+<CardGroup cols={3}>
+  <Card title="Docker Compose" icon="docker" href="/3wm-project/deployment/docker">
+    Single server deployment with Docker Compose
+  </Card>
+  
+  <Card title="Kubernetes" icon="dharmachakra" href="/3wm-project/deployment/kubernetes">
+    Scalable deployment on Kubernetes clusters
+  </Card>
+  
+  <Card title="Cloud Platforms" icon="cloud" href="/3wm-project/deployment/cloud">
+    Deploy to AWS, GCP, or Azure
+  </Card>
+</CardGroup>
+
+## Production Requirements
+
+### System Requirements
+
+<Tabs>
+  <Tab title="Minimum">
+    - **CPU**: 4 cores
+    - **RAM**: 16GB
+    - **Storage**: 100GB SSD
+    - **Network**: 100 Mbps
+    - **OS**: Ubuntu 20.04+
+  </Tab>
+  
+  <Tab title="Recommended">
+    - **CPU**: 8 cores
+    - **RAM**: 32GB
+    - **Storage**: 500GB SSD
+    - **Network**: 1 Gbps
+    - **OS**: Ubuntu 22.04 LTS
+  </Tab>
+  
+  <Tab title="High Performance">
+    - **CPU**: 16+ cores
+    - **RAM**: 64GB+
+    - **Storage**: 1TB+ NVMe
+    - **Network**: 10 Gbps
+    - **GPU**: Optional for OCR
+  </Tab>
+</Tabs>
+
+### External Services
+
+Before deployment, ensure you have:
+
+1. **PostgreSQL Database** (managed or self-hosted)
+2. **Neo4j Instance** (Aura recommended)
+3. **Supabase Project** (for vectors and storage)
+4. **Redis Instance** (managed or self-hosted)
+5. **OpenAI API Key** with sufficient credits
+
+## Pre-Deployment Checklist
+
+<Steps>
+  <Step title="Security Configuration">
+    - Generate secure JWT secrets
+    - Configure CORS origins
+    - Set up SSL certificates
+    - Configure firewall rules
+    - Enable audit logging
+  </Step>
+  
+  <Step title="Database Setup">
+    - Create production databases
+    - Configure connection pooling
+    - Set up backups
+    - Enable monitoring
+    - Configure replication
+  </Step>
+  
+  <Step title="Environment Configuration">
+    - Set all production environment variables
+    - Configure rate limiting
+    - Set appropriate log levels
+    - Configure email settings
+    - Set up webhook endpoints
+  </Step>
+  
+  <Step title="Monitoring Setup">
+    - Deploy Prometheus
+    - Configure Grafana dashboards
+    - Set up alerts
+    - Configure log aggregation
+    - Enable APM if needed
+  </Step>
+</Steps>
+
+## Environment Variables
+
+### Required Variables
+
+```env
+# Application
+ENVIRONMENT=production
+SECRET_KEY=<generate-secure-key>
+API_BASE_URL=https://api.yourdomain.com
+
+# Database
+DATABASE_URL=postgresql://user:pass@host:5432/3wm_prod
+REDIS_URL=redis://user:pass@host:6379/0
+
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=<anon-key>
+SUPABASE_SERVICE_KEY=<service-key>
+
+# Neo4j
+NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=<secure-password>
+
+# OpenAI
+OPENAI_API_KEY=sk-<your-key>
+
+# JWT
+JWT_SECRET_KEY=<generate-secure-key>
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Security
+ALLOWED_ORIGINS=https://app.yourdomain.com,https://admin.yourdomain.com
+TRUSTED_HOSTS=api.yourdomain.com
+```
+
+### Optional Variables
+
+```env
+# Performance
+WORKERS=4
+MAX_CONNECTIONS=100
+CONNECTION_TIMEOUT=30
+
+# Monitoring
+PROMETHEUS_ENABLED=true
+METRICS_PORT=9090
+LOG_LEVEL=INFO
+
+# Features
+ENABLE_WEBHOOKS=true
+ENABLE_BATCH_PROCESSING=true
+MAX_UPLOAD_SIZE=52428800  # 50MB
+```
+
+## Deployment Architecture
+
+```mermaid
+graph TB
+    subgraph "Internet"
+        A[Users]
+        B[API Clients]
+    end
+    
+    subgraph "Edge Layer"
+        C[CDN/CloudFlare]
+        D[WAF]
+    end
+    
+    subgraph "Load Balancer"
+        E[NGINX/ALB]
+    end
+    
+    subgraph "Application Layer"
+        F[API Server 1]
+        G[API Server 2]
+        H[API Server N]
+    end
+    
+    subgraph "Data Layer"
+        I[(PostgreSQL)]
+        J[(Neo4j)]
+        K[(Redis)]
+        L[Supabase]
+    end
+    
+    subgraph "Monitoring"
+        M[Prometheus]
+        N[Grafana]
+        O[Logs]
+    end
+    
+    A --> C
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    E --> G
+    E --> H
+    F --> I
+    F --> J
+    F --> K
+    F --> L
+    G --> I
+    G --> J
+    G --> K
+    G --> L
+    H --> I
+    H --> J
+    H --> K
+    H --> L
+    F --> M
+    G --> M
+    H --> M
+    M --> N
+```
+
+## Security Considerations
+
+<Warning>
+  Production deployments must implement proper security measures to protect sensitive financial data.
+</Warning>
+
+### Security Checklist
+
+- ✅ Use HTTPS everywhere
+- ✅ Enable firewall rules
+- ✅ Implement rate limiting
+- ✅ Use secure passwords
+- ✅ Enable audit logging
+- ✅ Regular security updates
+- ✅ Encrypt data at rest
+- ✅ Implement backup strategy
+- ✅ Set up monitoring alerts
+- ✅ Configure CORS properly
+
+### Network Security
+
+```nginx
+# Example NGINX configuration
+server {
+    listen 443 ssl http2;
+    server_name api.yourdomain.com;
+    
+    ssl_certificate /etc/ssl/certs/api.crt;
+    ssl_certificate_key /etc/ssl/private/api.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    
+    location / {
+        proxy_pass http://app:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+## Scaling Strategies
+
+### Horizontal Scaling
+
+<Tip>
+  The application is stateless and can be scaled horizontally by adding more instances.
+</Tip>
+
+1. **Application Servers**: Add more API server instances
+2. **Database Connections**: Use connection pooling
+3. **Cache Layer**: Implement Redis clustering
+4. **Load Balancing**: Use round-robin or least connections
+
+### Vertical Scaling
+
+When to scale vertically:
+- OCR processing bottlenecks
+- Large document processing
+- Complex AI queries
+- Memory-intensive operations
+
+## Monitoring & Observability
+
+### Key Metrics to Monitor
+
+<CardGroup cols={2}>
+  <Card title="Application Metrics" icon="chart-line">
+    - Request rate
+    - Response times
+    - Error rates
+    - Queue lengths
+  </Card>
+  
+  <Card title="Business Metrics" icon="chart-pie">
+    - Documents processed
+    - Processing accuracy
+    - User activity
+    - API usage
+  </Card>
+  
+  <Card title="Infrastructure Metrics" icon="server">
+    - CPU usage
+    - Memory usage
+    - Disk I/O
+    - Network traffic
+  </Card>
+  
+  <Card title="External Services" icon="plug">
+    - Database connections
+    - API rate limits
+    - Service availability
+    - Response times
+  </Card>
+</CardGroup>
+
+### Alerting Rules
+
+```yaml
+# Example Prometheus alerting rules
+groups:
+  - name: 3wm_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        annotations:
+          summary: "High error rate detected"
+          
+      - alert: SlowProcessing
+        expr: histogram_quantile(0.95, document_processing_seconds) > 10
+        for: 10m
+        annotations:
+          summary: "Document processing is slow"
+          
+      - alert: LowDiskSpace
+        expr: disk_free_percent < 10
+        for: 5m
+        annotations:
+          summary: "Low disk space on server"
+```
+
+## Backup & Recovery
+
+### Backup Strategy
+
+1. **Database Backups**
+   - Daily automated backups
+   - Point-in-time recovery
+   - Off-site backup storage
+   - Regular restore testing
+
+2. **Document Storage**
+   - Supabase handles backups
+   - Consider additional S3 backup
+   - Implement versioning
+
+3. **Configuration Backups**
+   - Version control for configs
+   - Encrypted secrets backup
+   - Infrastructure as code
+
+### Disaster Recovery
+
+<Steps>
+  <Step title="Preparation">
+    - Document recovery procedures
+    - Maintain updated runbooks
+    - Regular DR drills
+    - Keep contact lists current
+  </Step>
+  
+  <Step title="Detection">
+    - Automated monitoring
+    - Alert escalation
+    - Health check endpoints
+    - Status page updates
+  </Step>
+  
+  <Step title="Response">
+    - Follow incident response plan
+    - Activate backup systems
+    - Communicate with stakeholders
+    - Begin recovery process
+  </Step>
+  
+  <Step title="Recovery">
+    - Restore from backups
+    - Verify data integrity
+    - Test system functionality
+    - Monitor for issues
+  </Step>
+</Steps>
+
+## Cost Optimization
+
+### Resource Optimization
+
+- Use auto-scaling for variable loads
+- Implement caching aggressively
+- Optimize database queries
+- Use CDN for static assets
+- Monitor API usage costs
+
+### Cost Monitoring
+
+```python
+# Example cost tracking
+costs = {
+    "compute": track_compute_hours(),
+    "storage": track_storage_usage(),
+    "api_calls": {
+        "openai": track_openai_usage(),
+        "neo4j": track_neo4j_queries(),
+    },
+    "bandwidth": track_bandwidth_usage()
+}
+```
+
+## Next Steps
+
+- [Docker Deployment](/3wm-project/deployment/docker) - Deploy with Docker
+- [Kubernetes Guide](/3wm-project/deployment/kubernetes) - K8s deployment
+- [Monitoring Setup](/3wm-project/deployment/monitoring) - Set up monitoring
+- [Security Guide](/3wm-project/architecture/security) - Security best practices 

@@ -1,0 +1,501 @@
+---
+title: Integration Guide
+description: Complete guide to integrating 3WM with external systems and services
+---
+
+# 3WM Integration Guide
+
+## Overview
+
+The 3WM system is designed for seamless integration with your existing technology stack. This guide covers all integration points, APIs, and external service connections.
+
+## Core Integrations
+
+### 1. AccountView Integration
+
+<Card>
+**Direct Accounting System Integration**
+
+3WM connects directly with AccountView for automated journal entry creation and vendor management.
+
+**Features:**
+- Automatic journal entry posting
+- Vendor master data sync
+- GL account mapping
+- Real-time status updates
+</Card>
+
+<CodeGroup>
+```python Configuration
+ACCOUNTVIEW_CONFIG = {
+    "api_url": "https://api.accountview.com/v2",
+    "api_key": os.getenv("ACCOUNTVIEW_API_KEY"),
+    "company_id": os.getenv("ACCOUNTVIEW_COMPANY_ID"),
+    "sync_interval": 300  # seconds
+}
+```
+
+```python Usage
+from app.integrations.accountview import AccountViewClient
+
+client = AccountViewClient()
+
+# Post journal entry
+entry = client.create_journal_entry({
+    "date": "2024-01-15",
+    "description": "Invoice from Vendor XYZ",
+    "lines": [
+        {"account": "6100", "debit": 1000.00},
+        {"account": "2100", "credit": 1000.00}
+    ]
+})
+```
+</CodeGroup>
+
+### 2. Email Integration
+
+<Tabs>
+  <Tab title="IMAP/SMTP">
+    ```python
+    EMAIL_CONFIG = {
+        "imap_server": "imap.gmail.com",
+        "imap_port": 993,
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 587,
+        "username": "invoices@company.com",
+        "password": os.getenv("EMAIL_PASSWORD"),
+        "inbox_folder": "INBOX",
+        "processed_folder": "Processed"
+    }
+    ```
+  </Tab>
+
+  <Tab title="Microsoft 365">
+    ```python
+    MICROSOFT_CONFIG = {
+        "tenant_id": os.getenv("AZURE_TENANT_ID"),
+        "client_id": os.getenv("AZURE_CLIENT_ID"),
+        "client_secret": os.getenv("AZURE_CLIENT_SECRET"),
+        "mailbox": "invoices@company.com"
+    }
+    ```
+  </Tab>
+
+  <Tab title="Google Workspace">
+    ```python
+    GOOGLE_CONFIG = {
+        "service_account_file": "credentials.json",
+        "delegated_user": "invoices@company.com",
+        "scopes": [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.modify"
+        ]
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### 3. Database Integrations
+
+#### PostgreSQL (Primary Database)
+```yaml
+# Docker Compose configuration
+postgresql:
+  image: postgres:15
+  environment:
+    POSTGRES_DB: threewm
+    POSTGRES_USER: threewm_user
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
+```
+
+#### Neo4j (Graph Database)
+```yaml
+neo4j:
+  image: neo4j:5.0
+  environment:
+    NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+    NEO4J_PLUGINS: '["graph-data-science"]'
+  ports:
+    - "7474:7474"  # Browser
+    - "7687:7687"  # Bolt
+```
+
+#### Supabase (Vector Database)
+```typescript
+// Frontend configuration
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// Vector similarity search
+const { data } = await supabase.rpc('match_documents', {
+  query_embedding: embedding,
+  match_threshold: 0.8,
+  match_count: 10
+});
+```
+
+### 4. AI Service Integrations
+
+<AccordionGroup>
+  <Accordion title="OpenAI Integration">
+    ```python
+    from openai import OpenAI
+    
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
+    # Document analysis
+    response = client.chat.completions.create(
+        model="gpt-4-turbo-preview",
+        messages=[
+            {"role": "system", "content": "Extract invoice data"},
+            {"role": "user", "content": document_text}
+        ]
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Claude Integration">
+    ```python
+    from anthropic import Anthropic
+    
+    client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    
+    # Advanced analysis
+    response = client.messages.create(
+        model="claude-3-opus-20240229",
+        messages=[{"role": "user", "content": query}]
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="LangChain Integration">
+    ```python
+    from langchain.agents import create_openai_tools_agent
+    from langchain.tools import Tool
+    
+    tools = [
+        Tool(name="search", func=search_documents),
+        Tool(name="analyze", func=analyze_vendor),
+        Tool(name="calculate", func=calculate_totals)
+    ]
+    
+    agent = create_openai_tools_agent(llm, tools, prompt)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## API Integration
+
+### RESTful API
+
+<Card>
+**Base URL:** `https://api.3wm.yourdomain.com/api/v1`
+
+**Authentication:** Bearer token (JWT)
+
+**Rate Limits:** 
+- 100 requests/minute (standard)
+- 1000 requests/minute (enterprise)
+</Card>
+
+### API Endpoints
+
+<CodeGroup>
+```bash Authentication
+# Login
+POST /auth/login
+{
+  "email": "user@example.com",
+  "password": "secure_password"
+}
+
+# Response
+{
+  "access_token": "eyJ0eXAiOiJKV1Q...",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+```
+
+```bash Document Upload
+# Upload document
+POST /upload/
+Headers: 
+  Authorization: Bearer {token}
+  Content-Type: multipart/form-data
+
+Body:
+  file: invoice.pdf
+
+# Response
+{
+  "document_id": "doc_123456",
+  "status": "processing",
+  "estimated_time": 10
+}
+```
+
+```bash Query Documents
+# Natural language query
+POST /agent/query
+{
+  "query": "Show all invoices from Acme Corp last month",
+  "include_metadata": true
+}
+
+# Response
+{
+  "results": [...],
+  "total_count": 15,
+  "query_time": 1.2
+}
+```
+</CodeGroup>
+
+### Webhook Integration
+
+Configure webhooks to receive real-time notifications:
+
+```python
+# Webhook configuration
+WEBHOOK_CONFIG = {
+    "url": "https://your-system.com/webhooks/3wm",
+    "secret": os.getenv("WEBHOOK_SECRET"),
+    "events": [
+        "document.processed",
+        "invoice.approved",
+        "fraud.detected",
+        "error.occurred"
+    ]
+}
+
+# Webhook payload example
+{
+    "event": "document.processed",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "data": {
+        "document_id": "doc_123456",
+        "type": "invoice",
+        "vendor": "Acme Corp",
+        "amount": 5420.50,
+        "confidence": 0.98
+    }
+}
+```
+
+## Third-Party Integrations
+
+### ERP Systems
+
+<Tabs>
+  <Tab title="SAP">
+    ```python
+    # SAP integration via RFC
+    from pyrfc import Connection
+    
+    conn = Connection(
+        ashost='sap.company.com',
+        sysnr='00',
+        client='100',
+        user='RFC_USER',
+        passwd=os.getenv('SAP_PASSWORD')
+    )
+    
+    # Post invoice
+    result = conn.call('BAPI_INCOMINGINVOICE_CREATE', 
+                      HEADERDATA=invoice_header,
+                      ITEMDATA=invoice_items)
+    ```
+  </Tab>
+
+  <Tab title="Oracle">
+    ```python
+    # Oracle REST API
+    import requests
+    
+    oracle_api = "https://oracle.company.com/fscmRestApi/resources/11.13.18.05"
+    
+    response = requests.post(
+        f"{oracle_api}/invoices",
+        headers={"Authorization": f"Bearer {token}"},
+        json=invoice_data
+    )
+    ```
+  </Tab>
+
+  <Tab title="Microsoft Dynamics">
+    ```python
+    # Dynamics 365 Web API
+    dynamics_url = "https://company.crm.dynamics.com/api/data/v9.2"
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0"
+    }
+    
+    response = requests.post(
+        f"{dynamics_url}/invoices",
+        headers=headers,
+        json=invoice_entity
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### Cloud Storage
+
+<AccordionGroup>
+  <Accordion title="AWS S3">
+    ```python
+    import boto3
+    
+    s3 = boto3.client('s3',
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_KEY')
+    )
+    
+    # Upload processed document
+    s3.upload_file(
+        'processed/invoice_123.pdf',
+        'company-documents',
+        'invoices/2024/01/invoice_123.pdf'
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Azure Blob Storage">
+    ```python
+    from azure.storage.blob import BlobServiceClient
+    
+    blob_service = BlobServiceClient(
+        account_url=f"https://{account_name}.blob.core.windows.net",
+        credential=os.getenv('AZURE_STORAGE_KEY')
+    )
+    
+    # Upload to blob
+    blob_client = blob_service.get_blob_client(
+        container="documents",
+        blob="invoices/invoice_123.pdf"
+    )
+    blob_client.upload_blob(data)
+    ```
+  </Accordion>
+
+  <Accordion title="Google Cloud Storage">
+    ```python
+    from google.cloud import storage
+    
+    client = storage.Client()
+    bucket = client.bucket('company-documents')
+    
+    # Upload file
+    blob = bucket.blob('invoices/2024/01/invoice_123.pdf')
+    blob.upload_from_filename('processed/invoice_123.pdf')
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Security & Authentication
+
+### OAuth 2.0 Integration
+
+```python
+# OAuth configuration
+OAUTH_CONFIG = {
+    "providers": {
+        "google": {
+            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+            "redirect_uri": "https://app.3wm.com/auth/google/callback"
+        },
+        "microsoft": {
+            "client_id": os.getenv("AZURE_CLIENT_ID"),
+            "client_secret": os.getenv("AZURE_CLIENT_SECRET"),
+            "tenant": os.getenv("AZURE_TENANT_ID")
+        }
+    }
+}
+```
+
+### SAML Integration
+
+```xml
+<!-- SAML configuration -->
+<EntityDescriptor entityID="https://app.3wm.com">
+    <SPSSODescriptor>
+        <AssertionConsumerService 
+            Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+            Location="https://app.3wm.com/saml/acs"/>
+    </SPSSODescriptor>
+</EntityDescriptor>
+```
+
+## Monitoring & Observability
+
+### Prometheus Metrics
+
+```python
+# Expose metrics endpoint
+from prometheus_client import Counter, Histogram
+
+document_processed = Counter('documents_processed_total', 
+                           'Total processed documents')
+processing_time = Histogram('document_processing_seconds',
+                          'Time to process document')
+
+@processing_time.time()
+def process_document(doc):
+    # Processing logic
+    document_processed.inc()
+```
+
+### Logging Integration
+
+```python
+# Structured logging
+import structlog
+
+logger = structlog.get_logger()
+
+logger.info("document_processed",
+    document_id=doc_id,
+    vendor=vendor_name,
+    amount=invoice_amount,
+    processing_time=elapsed_time
+)
+```
+
+## Testing Integrations
+
+### Integration Test Example
+
+```python
+import pytest
+from app.integrations import AccountViewClient
+
+@pytest.mark.integration
+async def test_accountview_integration():
+    client = AccountViewClient(test_mode=True)
+    
+    # Test vendor creation
+    vendor = await client.create_vendor({
+        "name": "Test Vendor",
+        "iban": "NL91ABNA0417164300"
+    })
+    
+    assert vendor["id"] is not None
+    assert vendor["name"] == "Test Vendor"
+```
+
+## Support
+
+For integration support:
+- Technical Documentation: Available in `/docs`
+- API Reference: https://api.3wm.com/docs
+- Support Email: integrations@skydust.io
+- Developer Portal: https://developers.skydust.io 

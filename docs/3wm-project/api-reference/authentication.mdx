@@ -1,0 +1,354 @@
+---
+title: "Authentication API"
+description: "User registration, login, and token management"
+icon: "lock"
+---
+
+
+## Overview
+
+The 3WM API uses JWT (JSON Web Token) authentication with refresh tokens for secure access.
+
+## Register User
+
+Create a new user account.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePassword123!",
+    "full_name": "John Doe"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "http://localhost:8000/api/v1/auth/register",
+    json={
+        "email": "user@example.com",
+        "password": "SecurePassword123!",
+        "full_name": "John Doe"
+    }
+)
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:8000/api/v1/auth/register', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    password: 'SecurePassword123!',
+    full_name: 'John Doe'
+  })
+});
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/auth/register`
+
+### Request Body
+
+<ParamField body="email" type="string" required>
+  User's email address. Must be unique.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Password. Must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number.
+</ParamField>
+
+<ParamField body="full_name" type="string" optional>
+  User's full name for display purposes.
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json Success
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "user@example.com",
+      "full_name": "John Doe",
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    "message": "Registration successful. Please login."
+  }
+}
+```
+
+```json Error - Email Exists
+{
+  "status": "error",
+  "error": {
+    "code": "USER_EXISTS",
+    "message": "Email already registered"
+  }
+}
+```
+</ResponseExample>
+
+## Login
+
+Authenticate and receive access tokens.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePassword123!"
+  }'
+```
+
+```python Python
+response = requests.post(
+    "http://localhost:8000/api/v1/auth/login",
+    json={
+        "email": "user@example.com",
+        "password": "SecurePassword123!"
+    }
+)
+
+# Extract tokens
+tokens = response.json()["data"]
+access_token = tokens["access_token"]
+refresh_token = tokens["refresh_token"]
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/auth/login`
+
+### Request Body
+
+<ParamField body="email" type="string" required>
+  Registered email address
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json Success
+{
+  "status": "success",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer",
+    "expires_in": 1800,
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "user@example.com",
+      "full_name": "John Doe"
+    }
+  }
+}
+```
+
+```json Error - Invalid Credentials
+{
+  "status": "error",
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Invalid email or password"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseField name="access_token" type="string" required>
+  JWT access token for API requests. Valid for 30 minutes.
+</ResponseField>
+
+<ResponseField name="refresh_token" type="string" required>
+  JWT refresh token for obtaining new access tokens. Valid for 7 days.
+</ResponseField>
+
+<ResponseField name="expires_in" type="integer" required>
+  Access token expiration time in seconds
+</ResponseField>
+
+## Refresh Token
+
+Get a new access token using a refresh token.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/auth/refresh`
+
+### Request Body
+
+<ParamField body="refresh_token" type="string" required>
+  Valid refresh token
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json Success
+{
+  "status": "success",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer",
+    "expires_in": 1800
+  }
+}
+```
+</ResponseExample>
+
+## Logout
+
+Invalidate refresh token.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/auth/logout \
+  -H "Authorization: Bearer your-access-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/auth/logout`
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token from login
+</ParamField>
+
+### Response
+
+<ResponseExample>
+```json Success
+{
+  "status": "success",
+  "message": "Logged out successfully"
+}
+```
+</ResponseExample>
+
+## Get Current User
+
+Retrieve current user information.
+
+<RequestExample>
+```bash cURL
+curl -X GET http://localhost:8000/api/v1/auth/me \
+  -H "Authorization: Bearer your-access-token"
+```
+</RequestExample>
+
+### Endpoint
+
+`GET /api/v1/auth/me`
+
+### Response
+
+<ResponseExample>
+```json Success
+{
+  "status": "success",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "full_name": "John Doe",
+    "created_at": "2024-01-15T10:30:00Z",
+    "last_login": "2024-01-20T14:22:00Z",
+    "is_active": true
+  }
+}
+```
+</ResponseExample>
+
+## Update Password
+
+Change user password.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:8000/api/v1/auth/change-password \
+  -H "Authorization: Bearer your-access-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "OldPassword123!",
+    "new_password": "NewPassword456!"
+  }'
+```
+</RequestExample>
+
+### Endpoint
+
+`POST /api/v1/auth/change-password`
+
+### Request Body
+
+<ParamField body="current_password" type="string" required>
+  Current password for verification
+</ParamField>
+
+<ParamField body="new_password" type="string" required>
+  New password (must meet security requirements)
+</ParamField>
+
+## Security Notes
+
+### Token Usage
+
+Always include the access token in the Authorization header:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### Token Expiration
+
+- **Access Token**: 30 minutes
+- **Refresh Token**: 7 days
+
+### Password Requirements
+
+- Minimum 8 characters
+- At least 1 uppercase letter
+- At least 1 lowercase letter
+- At least 1 number
+- Recommended: special characters
+
+### Best Practices
+
+1. **Store tokens securely** (httpOnly cookies or secure storage)
+2. **Refresh tokens before expiration**
+3. **Implement logout on client side**
+4. **Use HTTPS in production**
+5. **Never log or expose tokens** 
