@@ -1,77 +1,102 @@
 ---
 title: "Docker Deployment"
-description: "Deploy 3WM using Docker and Docker Compose"
+description: "Deploy 3WM met Docker en Docker Compose"
 icon: "docker"
 ---
 
+# Docker Deployment
 
-## Overview
-
-Deploy 3WM using Docker for consistent, reproducible deployments across environments.
+Deploy 3WM snel en eenvoudig met Docker Compose. Deze guide bevat alles wat je nodig hebt voor development, staging en productie deployments.
 
 ## Prerequisites
 
-- Docker Engine 20.10+
-- Docker Compose v2.0+
-- 8GB RAM minimum
-- 20GB free disk space
+<CardGroup cols={2}>
+  <Card title="Software Requirements" icon="desktop">
+    - Docker Engine 24.0+
+    - Docker Compose 2.20+
+    - Git 2.x
+    - Make (optioneel)
+  </Card>
+  
+  <Card title="Hardware Requirements" icon="server">
+    - CPU: 4+ cores
+    - RAM: 8GB minimum
+    - Storage: 50GB vrije ruimte
+    - Network: Stabiele internetverbinding
+  </Card>
+</CardGroup>
 
 ## Quick Start
 
-### 1. Clone the Repository
+### 1. Clone Repository
 
 ```bash
+# Clone de 3WM repository
 git clone https://github.com/sky-dust-intelligence/3wm.git
 cd 3wm
+
+# Of gebruik de 3WM-backend specifiek
+cd ~/BROUWER/finance/3WM-final/3WM-backend
 ```
 
-  <Step title="Configure Environment">
-    ```bash
-    cp .env.example .env
-    # Edit .env with your settings
-    ```
-  </Step>
-  
-  <Step title="Start Services">
-    ```bash
-    docker-compose up -d
-    ```
-  </Step>
-  
-  <Step title="Verify Deployment">
-    ```bash
-    docker-compose ps
-    curl http://localhost:8000/health
-    ```
-  </Step>
-</Steps>
+### 2. Environment Setup
 
-## Docker Compose Configuration
+```bash
+# Kopieer environment template
+cp .env.example .env.development
 
-### Production Stack
+# Edit de environment variabelen
+nano .env.development
+```
+
+### 3. Start Services
+
+```bash
+# Start alle services met make
+make docker-dev
+
+# Of direct met docker-compose
+docker-compose -f docker-compose.yml up -d
+```
+
+## Complete Docker Stack
+
+### docker-compose.yml
 
 ```yaml
-# docker-compose.yml
 version: '3.8'
 
 services:
-  app:
-    image: 3wm-api:latest
+  # FastAPI Backend
+  api:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - PYTHON_VERSION=3.13
+    image: 3wm-api:latest
+    container_name: 3wm-api
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/3wm
-      - REDIS_URL=redis://redis:6379/0
-      - NEO4J_URI=bolt://neo4j:7687
+      - APP_ENV=development
+      - POSTGRES_URL=${POSTGRES_URL}
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
     depends_on:
-      - db
-      - redis
-      - neo4j
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
+      - ./app:/app/app
       - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - 3wm-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -79,419 +104,160 @@ services:
       timeout: 10s
       retries: 3
 
-  db:
-    image: postgres:15-alpine
+  # PostgreSQL Database (Supabase compatible)
+  postgres:
+    image: supabase/postgres:15.1.0.117
+    container_name: 3wm-postgres
+    ports:
+      - "5432:5432"
     environment:
-      POSTGRES_DB: 3wm
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: 3wm
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - 3wm-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes
+    container_name: 3wm-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis}
     volumes:
       - redis_data:/data
+    networks:
+      - 3wm-network
     restart: unless-stopped
 
-  neo4j:
-    image: neo4j:5-community
-    environment:
-      NEO4J_AUTH: neo4j/password
-      NEO4J_PLUGINS: '["graph-data-science"]'
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-    restart: unless-stopped
-
+  # Prometheus Monitoring
   prometheus:
     image: prom/prometheus:latest
+    container_name: 3wm-prometheus
+    ports:
+      - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - 3wm-network
     restart: unless-stopped
 
+  # Grafana Dashboards
   grafana:
     image: grafana/grafana:latest
+    container_name: 3wm-grafana
+    ports:
+      - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - 3wm-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: 3wm-nginx
     ports:
-      - "3001:3000"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - api
+    networks:
+      - 3wm-network
     restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
-  neo4j_data:
-  neo4j_logs:
   prometheus_data:
   grafana_data:
+
+networks:
+  3wm-network:
+    driver: bridge
 ```
 
 ## Dockerfile
 
-### Production Dockerfile
-
 ```dockerfile
-# Dockerfile
-FROM python:3.11-slim as builder
+# Multi-stage build voor optimale image size
+FROM python:3.13-slim as builder
 
-# Install system dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /app
-
-# Copy requirements
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-FROM python:3.11-slim
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.cargo/bin:$PATH"
 
-# Set working directory
+# Copy dependency files
 WORKDIR /app
+COPY pyproject.toml uv.lock ./
 
-# Copy Python packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Install dependencies
+RUN uv sync --frozen
+
+# Production stage
+FROM python:3.13-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    tesseract-ocr \
+    tesseract-ocr-nld \
+    tesseract-ocr-eng \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy from builder
+WORKDIR /app
+COPY --from=builder /root/.cargo/bin/uv /usr/local/bin/uv
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
-COPY --chown=appuser:appuser . .
+COPY . .
 
-# Switch to non-root user
+# Set environment
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH=/app
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Expose port
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1
 
-# Run application
+# Start command
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-## Environment-Specific Configurations
-
-<Tabs>
-  <Tab title="Development">
-    ```yaml
-    # docker-compose.dev.yml
-    version: '3.8'
-    
-    services:
-      app:
-        build:
-          context: .
-          dockerfile: Dockerfile.dev
-        volumes:
-          - .:/app
-        environment:
-          - RELOAD=true
-          - DEBUG=true
-        command: uvicorn app.main:app --reload --host 0.0.0.0
-    ```
-  </Tab>
-  
-  <Tab title="Staging">
-    ```yaml
-    # docker-compose.staging.yml
-    version: '3.8'
-    
-    services:
-      app:
-        environment:
-          - ENVIRONMENT=staging
-          - LOG_LEVEL=DEBUG
-        deploy:
-          replicas: 2
-    ```
-  </Tab>
-  
-  <Tab title="Production">
-    ```yaml
-    # docker-compose.prod.yml
-    version: '3.8'
-    
-    services:
-      app:
-        environment:
-          - ENVIRONMENT=production
-          - LOG_LEVEL=INFO
-        deploy:
-          replicas: 3
-          resources:
-            limits:
-              cpus: '2'
-              memory: 4G
-    ```
-  </Tab>
-</Tabs>
-
-## Deployment Commands
-
-### Build and Deploy
-
-```bash
-# Build image
-docker-compose build
-
-# Start all services
-docker-compose up -d
-
-# Scale application
-docker-compose up -d --scale app=3
-
-# View logs
-docker-compose logs -f app
-
-# Stop services
-docker-compose down
-```
-
-### Environment-Specific Deployment
-
-```bash
-# Development
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
-
-# Staging
-docker-compose -f docker-compose.yml -f docker-compose.staging.yml up
-
-# Production
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
-```
-
-## Health Monitoring
-
-### Health Check Endpoint
-
-```python
-# app/main.py
-@app.get("/health")
-async def health_check():
-    """Check service health"""
-    checks = {
-        "database": await check_database(),
-        "redis": await check_redis(),
-        "neo4j": await check_neo4j(),
-        "storage": await check_storage()
-    }
-    
-    status = "healthy" if all(checks.values()) else "unhealthy"
-    
-    return {
-        "status": status,
-        "checks": checks,
-        "version": settings.VERSION,
-        "timestamp": datetime.utcnow()
-    }
-```
-
-### Docker Health Check
-
-```dockerfile
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
-```
-
-## Volume Management
-
-### Persistent Data
-
-```yaml
-volumes:
-  # Database data
-  postgres_data:
-    driver: local
-  
-  # Cache data
-  redis_data:
-    driver: local
-  
-  # Graph data
-  neo4j_data:
-    driver: local
-  
-  # Uploaded files
-  uploads:
-    driver: local
-    driver_opts:
-      type: none
-      device: /var/lib/3wm/uploads
-      o: bind
-```
-
-### Backup Volumes
-
-```bash
-# Backup PostgreSQL
-docker exec 3wm_db pg_dump -U postgres 3wm > backup.sql
-
-# Backup Neo4j
-docker exec 3wm_neo4j neo4j-admin dump --to=/backups/neo4j.dump
-
-# Backup uploads
-tar -czf uploads-backup.tar.gz /var/lib/3wm/uploads
-```
-
-## Networking
-
-### Custom Network
-
-```yaml
-networks:
-  3wm-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-```
-
-### Service Discovery
-
-Services communicate using Docker's internal DNS:
-- `app` → `http://app:8000`
-- `db` → `postgresql://db:5432`
-- `redis` → `redis://redis:6379`
-- `neo4j` → `bolt://neo4j:7687`
-
-## Security Best Practices
-
-<Warning>
-  Always follow security best practices in production deployments.
-</Warning>
-
-1. **Use Secrets**
-   ```yaml
-   secrets:
-     db_password:
-       external: true
-     jwt_secret:
-       external: true
-   ```
-
-2. **Non-Root User**
-   ```dockerfile
-   RUN useradd -m appuser
-   USER appuser
-   ```
-
-3. **Read-Only Filesystem**
-   ```yaml
-   app:
-     read_only: true
-     tmpfs:
-       - /tmp
-   ```
-
-4. **Network Isolation**
-   ```yaml
-   networks:
-     frontend:
-     backend:
-       internal: true
-   ```
-
-## Monitoring Setup
-
-### Prometheus Configuration
-
-```yaml
-# prometheus/prometheus.yml
-global:
-  scrape_interval: 15s
-
-scrape_configs:
-  - job_name: '3wm-api'
-    static_configs:
-      - targets: ['app:8000']
-    metrics_path: /metrics
-```
-
-### Grafana Dashboards
-
-Import pre-configured dashboards:
-1. API Performance Dashboard
-2. Document Processing Metrics
-3. System Health Overview
-
-## Troubleshooting
-
-### Common Issues
-
-<Tip>
-  Check logs first: `docker-compose logs -f [service]`
-</Tip>
-
-1. **Container Won't Start**
-   ```bash
-   docker-compose logs app
-   docker-compose ps
-   ```
-
-2. **Database Connection Failed**
-   ```bash
-   docker exec -it 3wm_db psql -U postgres
-   ```
-
-3. **Out of Memory**
-   ```bash
-   docker stats
-   docker-compose down
-   docker system prune -a
-   ```
-
-### Debug Mode
-
-```yaml
-app:
-  environment:
-    - DEBUG=true
-    - LOG_LEVEL=DEBUG
-  command: python -m debugpy --listen 0.0.0.0:5678 -m uvicorn app.main:app
-```
-
-## Production Checklist
-
-- [ ] Use specific image tags (not `latest`)
-- [ ] Configure resource limits
-- [ ] Set up health checks
-- [ ] Enable logging aggregation
-- [ ] Configure automatic restarts
-- [ ] Set up monitoring alerts
-- [ ] Implement backup strategy
-- [ ] Use secrets management
-- [ ] Enable SSL/TLS
-- [ ] Configure firewall rules
-
-## Next Steps
-
-- [Kubernetes Deployment](/3wm-project/deployment/kubernetes) - For larger scale
-- [Monitoring Setup](/3wm-project/deployment/monitoring) - Detailed monitoring
-- [Security Guide](/3wm-project/architecture/security) - Security hardening 
+``` 

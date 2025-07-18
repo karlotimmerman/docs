@@ -1,225 +1,153 @@
 ---
-title: 'API Overview'
-description: 'Complete reference for the 3WM REST API'
-icon: 'code'
+title: "API Overzicht"
+description: "RESTful API documentatie voor 3WM integratie"
+icon: "code"
 ---
 
-# API Overview
+# 3WM API Referentie
 
-The 3WM API is built with FastAPI and provides comprehensive endpoints for invoice automation, document processing, and AI-powered queries.
+De 3WM API is een moderne RESTful API gebouwd met **FastAPI**, die comprehensive endpoints biedt voor factuurverwerking, agent orchestratie, en systeem integratie.
 
 ## Base URL
 
 ```
-https://api.skydust.app/api/v1
+https://api.3wm.skydust.ai/api/v1
 ```
 
-For local development:
+Voor lokale development:
 ```
 http://localhost:8000/api/v1
 ```
 
-## Authentication
+## Authenticatie
 
-The API uses JWT (JSON Web Token) authentication:
+3WM gebruikt JWT-based authenticatie voor API toegang:
 
-```bash
-# Login to get access token
-curl -X POST https://api.skydust.app/api/v1/auth/login \
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.3wm.skydust.ai/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
     "password": "your-password"
   }'
-
-# Use token in subsequent requests
-curl -X GET https://api.skydust.app/api/v1/invoices \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### Token Management
+```python Python
+import httpx
 
-<CardGroup cols={2}>
-  <Card title="Access Token" icon="key">
-    - Valid for 30 minutes
-    - Used for API requests
-    - Contains user claims
-    - Stateless authentication
-  </Card>
-  
-  <Card title="Refresh Token" icon="rotate">
-    - Valid for 7 days
-    - Used to get new access token
-    - Stored securely
-    - Can be revoked
-  </Card>
-</CardGroup>
+async with httpx.AsyncClient() as client:
+    response = await client.post(
+        "https://api.3wm.skydust.ai/api/v1/auth/login",
+        json={
+            "email": "user@example.com",
+            "password": "your-password"
+        }
+    )
+    token = response.json()["access_token"]
+```
 
-## API Documentation
+```typescript TypeScript
+const response = await fetch('https://api.3wm.skydust.ai/api/v1/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    password: 'your-password'
+  })
+});
 
-### Interactive Documentation
+const { access_token } = await response.json();
+```
+</CodeGroup>
 
-<Tabs>
-  <Tab title="Swagger UI">
-    Access interactive API documentation at:
-    ```
-    https://api.skydust.app/docs
-    ```
-    
-    Features:
-    - Try out endpoints directly
-    - View request/response schemas
-    - Download OpenAPI spec
-    - Authentication testing
-  </Tab>
-  
-  <Tab title="ReDoc">
-    Alternative documentation at:
-    ```
-    https://api.skydust.app/redoc
-    ```
-    
-    Features:
-    - Clean, readable format
-    - Better for printing
-    - Search functionality
-    - Deep linking
-  </Tab>
-</Tabs>
+### Token Usage
 
-### OpenAPI Specification
+Include het token in de Authorization header:
 
-Download the OpenAPI 3.0 specification:
-```bash
-curl https://api.skydust.app/openapi.json -o openapi.json
+```
+Authorization: Bearer <your-jwt-token>
 ```
 
 ## Core Endpoints
 
-### Authentication
+### 1. Upload API
 
-<CardGroup cols={2}>
-  <Card title="POST /auth/register" icon="user-plus">
-    Register new user account
-  </Card>
+<Card title="POST /api/v1/upload" icon="upload">
+  Upload facturen voor verwerking
   
-  <Card title="POST /auth/login" icon="sign-in">
-    Login and get access token
-  </Card>
+  **Endpoints:**
+  - `POST /upload/file` - Upload enkele factuur
+  - `POST /upload/batch` - Upload meerdere facturen
+  - `GET /upload/status/{upload_id}` - Check upload status
+</Card>
+
+### 2. Agent API
+
+<Card title="POST /api/v1/agent" icon="robot">
+  Interact met AI agents
   
-  <Card title="POST /auth/refresh" icon="rotate">
-    Refresh access token
-  </Card>
+  **Endpoints:**
+  - `POST /agent/query` - Stel vraag aan agent
+  - `POST /agent/process` - Start document verwerking
+  - `GET /agent/status/{task_id}` - Check agent status
+</Card>
+
+### 3. Graph API
+
+<Card title="POST /api/v1/graph" icon="diagram-project">
+  LangGraph workflow management
   
-  <Card title="POST /auth/logout" icon="sign-out">
-    Logout and invalidate tokens
-  </Card>
-</CardGroup>
+  **Endpoints:**
+  - `POST /graph/invoke` - Start workflow
+  - `GET /graph/state/{thread_id}` - Get workflow state
+  - `POST /graph/stream` - Stream workflow updates
+</Card>
 
-### Document Processing
+### 4. Invoice API
 
-<CardGroup cols={2}>
-  <Card title="POST /upload" icon="upload">
-    Upload document for processing
-  </Card>
+<Card title="GET /api/v1/invoice" icon="file-invoice">
+  Factuur management endpoints
   
-  <Card title="GET /documents/{id}" icon="file">
-    Get processed document details
-  </Card>
+  **Endpoints:**
+  - `GET /invoice/list` - List facturen
+  - `GET /invoice/{invoice_id}` - Get factuur details
+  - `PUT /invoice/{invoice_id}` - Update factuur
+  - `POST /invoice/match` - Trigger 3-way matching
+  - `POST /invoice/approve` - Goedkeuren factuur
+</Card>
+
+### 5. Chatbot API
+
+<Card title="POST /api/v1/chatbot" icon="message-bot">
+  CopilotKit integratie
   
-  <Card title="GET /documents" icon="files">
-    List all documents with filters
-  </Card>
-  
-  <Card title="DELETE /documents/{id}" icon="trash">
-    Delete a document
-  </Card>
-</CardGroup>
+  **Endpoints:**
+  - `POST /chatbot/message` - Send message
+  - `GET /chatbot/history` - Get chat history
+  - `POST /chatbot/action` - Execute bot action
+</Card>
 
-### Invoice Operations
+## Request/Response Format
 
-<CardGroup cols={2}>
-  <Card title="GET /invoices" icon="file-invoice">
-    List invoices with filtering
-  </Card>
-  
-  <Card title="GET /invoices/{id}" icon="eye">
-    Get invoice details
-  </Card>
-  
-  <Card title="PUT /invoices/{id}" icon="edit">
-    Update invoice data
-  </Card>
-  
-  <Card title="POST /invoices/{id}/approve" icon="check">
-    Approve invoice
-  </Card>
-</CardGroup>
+### Standard Response
 
-### AI Agent
-
-<CardGroup cols={2}>
-  <Card title="POST /agent/query" icon="message">
-    Natural language query
-  </Card>
-  
-  <Card title="GET /agent/suggestions" icon="lightbulb">
-    Get query suggestions
-  </Card>
-</CardGroup>
-
-### 3-Way Matching
-
-<CardGroup cols={2}>
-  <Card title="POST /matching/validate" icon="link">
-    Perform 3-way match
-  </Card>
-  
-  <Card title="GET /matching/rules" icon="scale-balanced">
-    Get matching rules
-  </Card>
-</CardGroup>
-
-## Request Format
-
-### Headers
-
-Required headers for authenticated endpoints:
-
-```http
-Authorization: Bearer YOUR_ACCESS_TOKEN
-Content-Type: application/json
-Accept: application/json
-```
-
-### Request Body
-
-All POST/PUT requests use JSON:
+Alle API responses volgen dit format:
 
 ```json
 {
-  "field1": "value1",
-  "field2": "value2",
-  "nested": {
-    "field3": "value3"
-  }
-}
-```
-
-## Response Format
-
-### Success Response
-
-```json
-{
-  "status": "success",
+  "success": true,
   "data": {
     // Response data
   },
   "meta": {
-    "timestamp": "2024-01-15T10:30:00Z",
+    "timestamp": "2024-01-20T10:30:00Z",
+    "request_id": "req_abc123",
     "version": "1.0"
-  }
+  },
+  "errors": []
 }
 ```
 
@@ -227,210 +155,240 @@ All POST/PUT requests use JSON:
 
 ```json
 {
-  "status": "error",
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid input data",
-    "details": [
-      {
-        "field": "email",
-        "message": "Invalid email format"
-      }
-    ]
-  },
+  "success": false,
+  "data": null,
   "meta": {
-    "timestamp": "2024-01-15T10:30:00Z",
-    "request_id": "req_123456"
+    "timestamp": "2024-01-20T10:30:00Z",
+    "request_id": "req_abc123"
+  },
+  "errors": [
+    {
+      "code": "VALIDATION_ERROR",
+      "message": "Invalid invoice format",
+      "field": "invoice_date",
+      "details": "Date must be in ISO 8601 format"
+    }
+  ]
+}
+```
+
+## Detailed Endpoints
+
+### Upload File
+
+<ParamField path="POST /api/v1/upload/file" type="multipart/form-data">
+  Upload een enkele factuur voor verwerking
+</ParamField>
+
+**Request:**
+```bash
+curl -X POST https://api.3wm.skydust.ai/api/v1/upload/file \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@invoice.pdf" \
+  -F "metadata={\"vendor_id\":\"12345\",\"po_number\":\"PO-2024-001\"}"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "upload_id": "upl_abc123",
+    "file_name": "invoice.pdf",
+    "status": "processing",
+    "created_at": "2024-01-20T10:30:00Z"
   }
 }
 ```
 
-## Status Codes
+### Query Agent
 
-| Code | Meaning | Usage |
-|------|---------|-------|
-| 200 | OK | Successful GET, PUT |
-| 201 | Created | Successful POST |
-| 204 | No Content | Successful DELETE |
-| 400 | Bad Request | Invalid input |
-| 401 | Unauthorized | Missing/invalid token |
-| 403 | Forbidden | Insufficient permissions |
-| 404 | Not Found | Resource not found |
-| 409 | Conflict | Duplicate resource |
-| 422 | Unprocessable | Validation error |
-| 429 | Too Many Requests | Rate limit exceeded |
-| 500 | Server Error | Internal error |
+<ParamField path="POST /api/v1/agent/query" type="application/json">
+  Stel een vraag aan de AI agent
+</ParamField>
+
+**Request Body:**
+```json
+{
+  "query": "Hoeveel facturen zijn er deze maand verwerkt?",
+  "context": {
+    "include_vendors": true,
+    "date_range": "current_month"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "answer": "Deze maand zijn er 127 facturen verwerkt met een totale waarde van €458,392.",
+    "breakdown": {
+      "total_invoices": 127,
+      "total_amount": 458392.45,
+      "by_status": {
+        "approved": 98,
+        "pending": 21,
+        "rejected": 8
+      }
+    },
+    "sources": ["invoice_summary_2024_01"]
+  }
+}
+```
+
+### Invoke Graph
+
+<ParamField path="POST /api/v1/graph/invoke" type="application/json">
+  Start een LangGraph workflow
+</ParamField>
+
+**Request Body:**
+```json
+{
+  "workflow": "invoice_processing",
+  "input": {
+    "document_id": "doc_xyz789",
+    "options": {
+      "auto_approve": true,
+      "tolerance_override": {
+        "price": 0.02
+      }
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "thread_id": "thr_def456",
+    "status": "running",
+    "current_node": "extraction_agent",
+    "progress": 0.25
+  }
+}
+```
 
 ## Rate Limiting
 
-The API implements rate limiting to ensure fair usage:
+API rate limits per endpoint categorie:
 
-<Card title="Rate Limits" icon="gauge">
-  - **Anonymous**: 10 requests/minute
-  - **Authenticated**: 100 requests/minute
-  - **Premium**: 1000 requests/minute
+<CardGroup cols={2}>
+  <Card title="Standard Endpoints" icon="gauge">
+    - **Rate**: 100 requests per minute
+    - **Burst**: 20 requests
+    - **Applies to**: Most GET endpoints
+  </Card>
   
-  Rate limit headers:
-  - `X-RateLimit-Limit`: Maximum requests
-  - `X-RateLimit-Remaining`: Requests remaining
-  - `X-RateLimit-Reset`: Reset timestamp
-</Card>
+  <Card title="Heavy Operations" icon="weight">
+    - **Rate**: 10 requests per minute
+    - **Burst**: 3 requests
+    - **Applies to**: Upload, Graph invoke
+  </Card>
+</CardGroup>
 
-## Pagination
-
-List endpoints support pagination:
-
-```bash
-GET /api/v1/invoices?page=1&page_size=20&sort_by=created_at&order=desc
+Rate limit headers:
 ```
-
-Response includes pagination metadata:
-
-```json
-{
-  "data": [...],
-  "meta": {
-    "page": 1,
-    "page_size": 20,
-    "total_items": 150,
-    "total_pages": 8,
-    "has_next": true,
-    "has_prev": false
-  }
-}
-```
-
-## Filtering
-
-Use query parameters for filtering:
-
-```bash
-# Filter invoices by status and date range
-GET /api/v1/invoices?status=pending&date_from=2024-01-01&date_to=2024-01-31
-
-# Search with text query
-GET /api/v1/invoices?search=ACME&vendor_id=123
-
-# Multiple values
-GET /api/v1/invoices?status=pending,approved&amount_min=1000
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1705749600
 ```
 
 ## Webhooks
 
-Configure webhooks for async events:
+Configure webhooks voor real-time updates:
 
 ```json
 {
   "url": "https://your-app.com/webhook",
-  "events": ["invoice.processed", "invoice.approved"],
-  "secret": "your-webhook-secret"
+  "events": [
+    "invoice.processed",
+    "invoice.matched",
+    "invoice.approved",
+    "workflow.completed"
+  ],
+  "secret": "whsec_abc123"
 }
 ```
 
-### Webhook Events
+### Webhook Payload
 
-<CardGroup cols={2}>
-  <Card title="invoice.processed" icon="check-circle">
-    Document processing complete
-  </Card>
-  
-  <Card title="invoice.approved" icon="thumbs-up">
-    Invoice approved
-  </Card>
-  
-  <Card title="invoice.rejected" icon="times-circle">
-    Invoice rejected
-  </Card>
-  
-  <Card title="matching.complete" icon="link">
-    3-way matching finished
-  </Card>
-</CardGroup>
+```json
+{
+  "id": "evt_123",
+  "type": "invoice.processed",
+  "created": "2024-01-20T10:30:00Z",
+  "data": {
+    "invoice_id": "inv_789",
+    "status": "completed",
+    "extracted_data": {
+      // Extracted invoice data
+    }
+  }
+}
+```
 
-## Error Codes
-
-Common error codes and their meanings:
-
-| Code | Description | Action |
-|------|-------------|--------|
-| `AUTH_INVALID_CREDENTIALS` | Invalid email/password | Check credentials |
-| `AUTH_TOKEN_EXPIRED` | Access token expired | Refresh token |
-| `VALIDATION_ERROR` | Input validation failed | Check request data |
-| `RESOURCE_NOT_FOUND` | Resource doesn't exist | Verify ID |
-| `DUPLICATE_RESOURCE` | Resource already exists | Use different identifier |
-| `INSUFFICIENT_PERMISSIONS` | Lacking required permission | Check user role |
-| `RATE_LIMIT_EXCEEDED` | Too many requests | Wait and retry |
-
-## SDK Support
-
-Official SDKs available:
+## SDK's & Libraries
 
 <CardGroup cols={3}>
   <Card title="Python SDK" icon="python">
     ```bash
     pip install 3wm-sdk
     ```
+    [Documentation →](#)
   </Card>
   
-  <Card title="JavaScript SDK" icon="js">
+  <Card title="TypeScript SDK" icon="js">
     ```bash
-    npm install @skydust/3wm-sdk
+    npm install @3wm/sdk
     ```
+    [Documentation →](#)
   </Card>
   
   <Card title="Go SDK" icon="golang">
     ```bash
-    go get github.com/sky-dust-intelligence/3wm-go
+    go get github.com/3wm/sdk-go
     ```
+    [Documentation →](#)
   </Card>
 </CardGroup>
 
-## API Versioning
+## Error Codes
 
-The API uses URL versioning:
+| Code | Description | Action |
+|------|-------------|--------|
+| `AUTH_INVALID` | Invalid or expired token | Re-authenticate |
+| `RATE_LIMITED` | Too many requests | Wait and retry |
+| `VALIDATION_ERROR` | Invalid request data | Check request format |
+| `PROCESSING_ERROR` | Server processing error | Contact support |
+| `NOT_FOUND` | Resource not found | Verify resource ID |
 
-- Current version: `v1`
-- Base URL: `/api/v1`
-- Version in header: `X-API-Version: 1.0`
+## Testing
 
-### Deprecation Policy
+Test environment beschikbaar op:
+```
+https://api-test.3wm.skydust.ai/api/v1
+```
 
-- 6 months notice before deprecation
-- Deprecated endpoints return warning header
-- Migration guide provided
-- Backward compatibility maintained
+Test credentials:
+- Email: `test@3wm.ai`
+- Password: `test123`
 
-## Best Practices
+## OpenAPI Specification
 
-<Steps>
-  <Step title="Use HTTPS">
-    Always use HTTPS in production
-  </Step>
-  
-  <Step title="Handle Errors">
-    Implement proper error handling for all status codes
-  </Step>
-  
-  <Step title="Respect Rate Limits">
-    Implement exponential backoff for rate limits
-  </Step>
-  
-  <Step title="Paginate Results">
-    Use pagination for large result sets
-  </Step>
-  
-  <Step title="Cache Responses">
-    Cache GET responses when appropriate
-  </Step>
-</Steps>
+Download de volledige OpenAPI spec:
 
-## Next Steps
+<Card title="OpenAPI 3.0 Spec" icon="file-code" href="/api-reference/openapi.json">
+  Download openapi.json voor code generation
+</Card>
 
-- [Authentication](/3wm-project/api-reference/authentication) - Auth endpoints
-- [Upload API](/3wm-project/api-reference/upload) - Document upload
-- [Agent API](/3wm-project/api-reference/agent) - AI queries
-- [Postman Collection](https://api.skydust.app/postman) - Import to Postman
+## Support
 
----
-
-*Built with ❤️ by [Sky Dust](https://skydust.io)* 
+Voor API support:
+- 📧 Email: api-support@skydust.ai
+- 📚 API Status: https://status.3wm.ai
+- 🐛 Report Issues: https://github.com/sky-dust-intelligence/3wm/issues 

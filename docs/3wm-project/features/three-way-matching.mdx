@@ -1,459 +1,457 @@
 ---
 title: '3-Way Matching'
-description: 'Automated invoice validation through 3-way matching'
-icon: 'link'
+description: 'Intelligente matching van facturen, inkooporders en ontvangstbewijzen'
+icon: 'code-compare'
 ---
 
-# 3-Way Matching
+# 3-Way Matching Engine
 
-3WM's intelligent 3-way matching system automatically validates invoices by comparing them against purchase orders and goods receipts, ensuring accuracy and preventing fraud.
+Het hart van 3WM's automatisering is de intelligente 3-way matching engine die facturen automatisch vergelijkt met inkooporders (PO's) en goederenontvangsten (GR's) voor naadloze verificatie en goedkeuring.
 
-## What is 3-Way Matching?
+## Wat is 3-Way Matching?
 
-<Card title="Definition" icon="info-circle">
-  3-way matching is an accounts payable process that compares three documents before approving payment:
+3-Way matching is een financieel controleproces dat drie documenten vergelijkt:
+
+<CardGroup cols={3}>
+  <Card title="Factuur" icon="file-invoice">
+    Het betalingsverzoek van de leverancier met:
+    - Factuurnummer en datum
+    - Leveranciergegevens
+    - Gefactureerde items en bedragen
+    - BTW en totaalbedrag
+  </Card>
   
-  1. **Purchase Order (PO)** - What was ordered
-  2. **Goods Receipt** - What was received
-  3. **Invoice** - What the vendor is billing
+  <Card title="Inkooporder (PO)" icon="file-contract">
+    De officiële bestelling met:
+    - PO-nummer
+    - Goedgekeurde items en prijzen
+    - Leveringsvoorwaarden
+    - Budget autorisatie
+  </Card>
   
-  All three must match within defined tolerances for automatic approval.
-</Card>
+  <Card title="Ontvangstbewijs (GR)" icon="truck">
+    Bevestiging van ontvangen goederen:
+    - Ontvangen hoeveelheden
+    - Kwaliteitscontrole status
+    - Ontvangstdatum
+    - Locatie informatie
+  </Card>
+</CardGroup>
 
-## Matching Process
+## Matching Algoritme
 
-```mermaid
-graph LR
-    A[Invoice Received] --> B{Extract Data}
-    B --> C[Find Related PO]
-    B --> D[Find Goods Receipt]
+### Fuzzy Matching Logic
+
+3WM gebruikt geavanceerde fuzzy matching om variaties in data te verwerken:
+
+```python
+# Conceptuele implementatie van matching logic
+class ThreeWayMatcher:
+    """Intelligent 3-way matching with configurable tolerances."""
     
-    C --> E{3-Way Comparison}
-    D --> E
+    def __init__(self):
+        self.tolerances = {
+            "quantity": 0.02,      # 2% quantity variance
+            "price": 0.01,         # 1% price variance
+            "total": 0.05,         # 5% total variance
+            "date": 7              # 7 days date variance
+        }
     
-    E --> F{Match?}
-    F -->|Yes| G[Auto-Approve]
-    F -->|No| H[Flag Discrepancies]
-    
-    H --> I[Human Review]
-    I --> J[Resolution]
+    async def match_invoice_to_po(
+        self, 
+        invoice: Invoice, 
+        po: PurchaseOrder
+    ) -> MatchResult:
+        """Match invoice against purchase order."""
+        
+        # Header level matching
+        header_match = self.match_headers(invoice, po)
+        
+        # Line item matching
+        line_matches = await self.match_line_items(
+            invoice.line_items, 
+            po.line_items
+        )
+        
+        # Calculate overall score
+        match_score = self.calculate_match_score(
+            header_match, 
+            line_matches
+        )
+        
+        return MatchResult(
+            matched=match_score > 0.8,
+            score=match_score,
+            header_details=header_match,
+            line_details=line_matches,
+            discrepancies=self.identify_discrepancies(
+                invoice, po, line_matches
+            )
+        )
 ```
 
-## Matching Components
+### Line Item Matching
 
-### 1. Purchase Order Matching
+De engine gebruikt intelligente algoritmes voor regel-niveau matching:
+
+```python
+async def match_line_items(
+    self,
+    invoice_items: List[LineItem],
+    po_items: List[LineItem]
+) -> List[LineMatch]:
+    """Smart line item matching with fuzzy logic."""
+    
+    matches = []
+    
+    for inv_item in invoice_items:
+        best_match = None
+        best_score = 0
+        
+        for po_item in po_items:
+            # Calculate similarity score
+            score = self.calculate_item_similarity(inv_item, po_item)
+            
+            if score > best_score:
+                best_score = score
+                best_match = po_item
+        
+        if best_score > 0.7:  # 70% threshold
+            matches.append(LineMatch(
+                invoice_item=inv_item,
+                po_item=best_match,
+                score=best_score,
+                quantity_variance=self.calc_variance(
+                    inv_item.quantity, 
+                    best_match.quantity
+                ),
+                price_variance=self.calc_variance(
+                    inv_item.unit_price,
+                    best_match.unit_price
+                )
+            ))
+    
+    return matches
+```
+
+## Tolerantie Management
+
+### Configureerbare Toleranties
 
 <Tabs>
-  <Tab title="Fields Matched">
-    ```json
-    {
-      "po_number": "Exact match required",
-      "vendor_id": "Must match registered vendor",
-      "currency": "Must be identical",
-      "payment_terms": "Should align",
-      "line_items": {
-        "product_code": "Exact or mapped match",
-        "quantity": "Within tolerance",
-        "unit_price": "Within tolerance",
-        "description": "Fuzzy match allowed"
-      }
-    }
+  <Tab title="Standard Tolerances">
+    ```yaml
+    # Standaard toleranties voor de meeste leveranciers
+    standard_tolerances:
+      quantity:
+        percentage: 2%
+        absolute: 5 units
+      price:
+        percentage: 1%
+        absolute: €10
+      total:
+        percentage: 5%
+        absolute: €100
+      date:
+        days: 7
     ```
   </Tab>
   
-  <Tab title="Matching Logic">
-    ```python
-    def match_invoice_to_po(invoice, po):
-        """Match invoice against purchase order"""
-        
-        # Exact matches required
-        if invoice.po_number != po.number:
-            return MatchResult(matched=False, reason="PO number mismatch")
-        
-        if invoice.vendor_id != po.vendor_id:
-            return MatchResult(matched=False, reason="Vendor mismatch")
-        
-        # Tolerance-based matching
-        total_variance = abs(invoice.total - po.total) / po.total
-        if total_variance > TOLERANCE_PERCENTAGE:
-            return MatchResult(
-                matched=False, 
-                reason=f"Total variance {total_variance:.2%} exceeds tolerance"
-            )
-        
-        # Line item matching
-        line_matches = match_line_items(invoice.items, po.items)
-        
-        return MatchResult(
-            matched=line_matches.all_matched,
-            confidence=line_matches.confidence,
-            details=line_matches.details
-        )
+  <Tab title="Vendor Specific">
+    ```yaml
+    # Leverancier-specifieke toleranties
+    vendor_tolerances:
+      "NL123456789B01":  # Vendor VAT
+        quantity:
+          percentage: 5%    # Hogere tolerantie
+        price:
+          percentage: 0%    # Exacte prijs vereist
+        approval_limit: €50000
+      
+      "NL987654321B02":
+        quantity:
+          percentage: 0%    # Exacte hoeveelheid
+        price:
+          percentage: 3%    # Flexibele prijzen
+    ```
+  </Tab>
+  
+  <Tab title="Category Based">
+    ```yaml
+    # Categorie-gebaseerde toleranties
+    category_tolerances:
+      "raw_materials":
+        quantity: 5%      # Natuurlijke variatie
+        price: 10%        # Marktfluctuaties
+      
+      "fixed_assets":
+        quantity: 0%      # Exact aantal
+        price: 0%         # Vaste prijs
+      
+      "services":
+        quantity: 100%    # Niet relevant
+        price: 5%         # Kleine variaties
     ```
   </Tab>
 </Tabs>
 
-### 2. Goods Receipt Matching
+## Matching Scenarios
 
-<Card title="Receipt Validation" icon="truck">
-  Ensures that invoiced items were actually received:
+### 1. Perfect Match
+
+<Card title="Automatische Goedkeuring" icon="check-circle" color="green">
+  Wanneer alle drie documenten perfect matchen binnen toleranties:
+  - ✅ Factuur bedrag = PO bedrag = GR waarde
+  - ✅ Hoeveelheden komen overeen
+  - ✅ Prijzen zijn correct
+  - ✅ Leverancier en referenties kloppen
   
-  - **Delivery Reference**: Links invoice to specific delivery
-  - **Quantity Verification**: Invoiced ≤ Received
-  - **Date Validation**: Invoice date ≥ Receipt date
-  - **Quality Checks**: No rejected items invoiced
+  **Actie**: Automatische goedkeuring en doorsturen naar boekhouding
 </Card>
 
-### 3. Line Item Matching
+### 2. Partial Match
 
-The system performs intelligent line-by-line comparison:
+<Card title="Conditionele Goedkeuring" icon="exclamation-triangle" color="yellow">
+  Wanneer er kleine discrepanties zijn binnen toleranties:
+  - ⚠️ Quantity variance < 2%
+  - ⚠️ Price variance < 1%
+  - ⚠️ Enkele regels matchen niet
+  
+  **Actie**: Route naar supervisor voor quick review
+</Card>
+
+### 3. No Match
+
+<Card title="Handmatige Review Vereist" icon="x-circle" color="red">
+  Wanneer significante discrepanties gevonden worden:
+  - ❌ Geen matching PO gevonden
+  - ❌ Grote prijsverschillen
+  - ❌ Ontbrekende ontvangstbevestiging
+  - ❌ Onbekende leverancier
+  
+  **Actie**: Escalatie naar AP team voor onderzoek
+</Card>
+
+## Advanced Features
+
+### 1. Partial Shipment Handling
 
 ```python
-def match_line_items(invoice_items, po_items):
-    """Intelligent line item matching with fuzzy logic"""
+class PartialShipmentMatcher:
+    """Handle invoices for partial deliveries."""
     
-    matches = []
-    unmatched_invoice = list(invoice_items)
-    unmatched_po = list(po_items)
+    async def match_partial_shipments(
+        self,
+        invoice: Invoice,
+        po: PurchaseOrder
+    ) -> PartialMatchResult:
+        """
+        Match wanneer:
+        - PO voor 100 units
+        - GR voor 60 units (eerste levering)
+        - Factuur voor 60 units
+        """
+        
+        # Get all GRs for this PO
+        goods_receipts = await self.get_goods_receipts(po.number)
+        
+        # Sum received quantities
+        total_received = sum(gr.quantity for gr in goods_receipts)
+        
+        # Check if invoice matches received quantity
+        if abs(invoice.total_quantity - total_received) <= tolerance:
+            return PartialMatchResult(
+                matched=True,
+                received_percentage=total_received / po.total_quantity,
+                remaining_quantity=po.total_quantity - total_received,
+                message="Partial shipment matched successfully"
+            )
+```
+
+### 2. Multi-PO Consolidation
+
+```python
+async def match_consolidated_invoice(
+    self,
+    invoice: Invoice
+) -> ConsolidatedMatchResult:
+    """
+    Match één factuur tegen meerdere PO's:
+    - Leverancier stuurt maandelijkse verzamelfactuur
+    - Factuur bevat items van PO-001, PO-002, PO-003
+    """
     
-    # Phase 1: Exact product code matches
-    for inv_item in invoice_items:
-        for po_item in po_items:
-            if inv_item.product_code == po_item.product_code:
-                match = compare_items(inv_item, po_item)
-                matches.append(match)
-                unmatched_invoice.remove(inv_item)
-                unmatched_po.remove(po_item)
-                break
+    # Extract PO references from invoice
+    po_numbers = self.extract_po_references(invoice)
     
-    # Phase 2: Fuzzy description matching
-    for inv_item in unmatched_invoice[:]:
-        best_match = find_best_description_match(
-            inv_item, 
-            unmatched_po,
-            threshold=0.85
+    # Match each line item to its PO
+    matches_by_po = {}
+    for po_number in po_numbers:
+        po = await self.get_purchase_order(po_number)
+        matches = await self.match_line_items_to_po(
+            invoice.line_items, 
+            po
         )
-        if best_match:
-            match = compare_items(inv_item, best_match)
-            matches.append(match)
-            unmatched_invoice.remove(inv_item)
-            unmatched_po.remove(best_match)
+        matches_by_po[po_number] = matches
     
-    return LineMatchResult(
-        matches=matches,
-        unmatched_invoice=unmatched_invoice,
-        unmatched_po=unmatched_po
+    return ConsolidatedMatchResult(
+        matched_pos=matches_by_po,
+        total_match_score=self.calculate_consolidated_score(matches_by_po),
+        unmatched_items=self.find_unmatched_items(invoice, matches_by_po)
     )
 ```
 
-## Tolerance Configuration
+### 3. Historical Pattern Learning
 
-### Standard Tolerances
+```python
+class PatternLearningMatcher:
+    """Learn from historical matching patterns."""
+    
+    async def learn_vendor_patterns(self, vendor_id: str):
+        """
+        Analyseer historische patronen:
+        - Typische prijsvariaties
+        - Leveringspatronen
+        - Factureringsfrequentie
+        """
+        
+        history = await self.get_vendor_history(vendor_id)
+        
+        patterns = {
+            "avg_price_variance": np.mean([h.price_variance for h in history]),
+            "typical_lead_time": np.median([h.lead_time for h in history]),
+            "invoice_frequency": self.calculate_frequency(history),
+            "common_discrepancies": self.identify_patterns(history)
+        }
+        
+        # Adjust tolerances based on patterns
+        return self.optimize_tolerances(vendor_id, patterns)
+```
+
+## Integration Points
+
+### ERP Integration
 
 <CardGroup cols={2}>
-  <Card title="Amount Tolerances" icon="dollar">
-    ```yaml
-    amount_tolerance:
-      percentage: 5.0  # 5% variance allowed
-      absolute: 100    # Or €100 absolute
-      use_lesser: true # Use lesser of % or absolute
-    ```
+  <Card title="PO Import" icon="download">
+    - Real-time sync met ERP
+    - Batch import via API
+    - Webhook notifications
+    - Change tracking
   </Card>
   
-  <Card title="Quantity Tolerances" icon="boxes">
-    ```yaml
-    quantity_tolerance:
-      percentage: 2.0  # 2% variance allowed
-      absolute: 5      # Or 5 units absolute
-      round_to: 1      # Round to nearest unit
-    ```
-  </Card>
-  
-  <Card title="Price Tolerances" icon="tag">
-    ```yaml
-    price_tolerance:
-      percentage: 3.0  # 3% price variance
-      absolute: 10     # Or €10 per unit
-      consider_discounts: true
-    ```
-  </Card>
-  
-  <Card title="Date Tolerances" icon="calendar">
-    ```yaml
-    date_tolerance:
-      invoice_before_receipt: 30  # Days
-      invoice_after_po: 180       # Days
-      early_payment_discount: 10  # Days
-    ```
+  <Card title="GR Sync" icon="sync">
+    - Warehouse management sync
+    - Barcode scanning integration
+    - Mobile receiving apps
+    - IoT sensor data
   </Card>
 </CardGroup>
 
-### Custom Rules
-
-Configure vendor-specific or category-specific rules:
-
-```python
-CUSTOM_MATCHING_RULES = {
-    "vendor_categories": {
-        "strategic_suppliers": {
-            "amount_tolerance_percentage": 10.0,
-            "auto_approve_limit": 50000,
-            "require_receipt": False
-        },
-        "new_vendors": {
-            "amount_tolerance_percentage": 0.0,
-            "auto_approve_limit": 1000,
-            "require_receipt": True,
-            "require_manual_review": True
-        }
-    },
-    "product_categories": {
-        "services": {
-            "quantity_matching": False,
-            "description_matching": "fuzzy",
-            "receipt_required": False
-        },
-        "raw_materials": {
-            "quantity_tolerance_percentage": 1.0,
-            "price_tolerance_percentage": 2.0,
-            "receipt_required": True
-        }
-    }
-}
-```
-
-## Discrepancy Handling
-
-### Common Discrepancies
-
-<Tabs>
-  <Tab title="Price Discrepancies">
-    ```python
-    class PriceDiscrepancy:
-        def analyze(self, invoice_price, po_price):
-            variance = (invoice_price - po_price) / po_price
-            
-            if variance > 0.10:  # >10% increase
-                return {
-                    "severity": "high",
-                    "action": "block_payment",
-                    "notification": "finance_manager",
-                    "reason": f"Price increased by {variance:.1%}"
-                }
-            elif variance > 0.05:  # 5-10% increase
-                return {
-                    "severity": "medium",
-                    "action": "flag_review",
-                    "notification": "purchaser",
-                    "reason": f"Price variance {variance:.1%}"
-                }
-    ```
-  </Tab>
-  
-  <Tab title="Quantity Discrepancies">
-    ```python
-    class QuantityDiscrepancy:
-        def analyze(self, invoiced_qty, received_qty):
-            if invoiced_qty > received_qty:
-                return {
-                    "severity": "high",
-                    "action": "block_payment",
-                    "reason": "Invoiced more than received",
-                    "adjustment": received_qty - invoiced_qty
-                }
-            elif invoiced_qty < received_qty * 0.95:
-                return {
-                    "severity": "low",
-                    "action": "flag_info",
-                    "reason": "Partial invoice",
-                    "expected_future": received_qty - invoiced_qty
-                }
-    ```
-  </Tab>
-  
-  <Tab title="Missing Documents">
-    ```python
-    class MissingDocumentHandler:
-        def handle_missing_po(self, invoice):
-            if invoice.total < 1000:
-                return {
-                    "action": "create_retroactive_po",
-                    "approval": "department_head"
-                }
-            else:
-                return {
-                    "action": "block_payment",
-                    "escalation": "procurement_manager",
-                    "reason": "No PO for large invoice"
-                }
-        
-        def handle_missing_receipt(self, invoice):
-            if invoice.category == "services":
-                return {"action": "proceed", "note": "Services - no receipt required"}
-            else:
-                return {"action": "request_receipt", "deadline_days": 5}
-    ```
-  </Tab>
-</Tabs>
-
-### Resolution Workflows
-
-<Steps>
-  <Step title="Automatic Resolution">
-    System attempts automatic resolution for minor discrepancies:
-    - Round-off differences
-    - Known vendor pricing updates
-    - Approved substitutions
-  </Step>
-  
-  <Step title="Guided Resolution">
-    For medium severity issues, guide users through resolution:
-    - Suggest likely causes
-    - Provide historical context
-    - Offer quick actions
-  </Step>
-  
-  <Step title="Escalation">
-    High severity or repeated issues trigger escalation:
-    - Notify appropriate managers
-    - Block payment if needed
-    - Create audit trail
-  </Step>
-</Steps>
-
-## Performance Optimization
-
-### Intelligent Caching
-
-```python
-class MatchingCache:
-    """Cache frequently accessed data for faster matching"""
-    
-    def __init__(self):
-        self.po_cache = TTLCache(maxsize=1000, ttl=3600)
-        self.vendor_cache = TTLCache(maxsize=500, ttl=7200)
-        self.product_cache = TTLCache(maxsize=2000, ttl=3600)
-    
-    async def get_po(self, po_number: str):
-        if po_number in self.po_cache:
-            return self.po_cache[po_number]
-        
-        po = await db.get_purchase_order(po_number)
-        self.po_cache[po_number] = po
-        return po
-```
-
-### Batch Processing
-
-```python
-async def batch_match_invoices(invoices: List[Invoice]):
-    """Process multiple invoices efficiently"""
-    
-    # Pre-load all related POs and receipts
-    po_numbers = {inv.po_number for inv in invoices}
-    pos = await db.get_purchase_orders_batch(po_numbers)
-    
-    # Process in parallel
-    tasks = [
-        match_invoice(invoice, pos.get(invoice.po_number))
-        for invoice in invoices
-    ]
-    
-    results = await asyncio.gather(*tasks)
-    return results
-```
-
-## Analytics & Reporting
-
-### Key Metrics
-
-<CardGroup cols={3}>
-  <Card title="Match Rate" icon="percentage">
-    Track percentage of invoices successfully matched
-  </Card>
-  
-  <Card title="Auto-Approval Rate" icon="check-circle">
-    Monitor automation effectiveness
-  </Card>
-  
-  <Card title="Discrepancy Patterns" icon="chart-line">
-    Identify recurring issues by vendor/category
-  </Card>
-</CardGroup>
-
-### Dashboard Views
+### Reporting & Analytics
 
 ```sql
--- Match rate by vendor
+-- Matching performance dashboard query
 SELECT 
-    v.name as vendor_name,
+    DATE_TRUNC('month', processed_date) as month,
     COUNT(*) as total_invoices,
-    SUM(CASE WHEN m.status = 'matched' THEN 1 ELSE 0 END) as matched,
-    AVG(m.confidence_score) as avg_confidence
-FROM invoices i
-JOIN vendors v ON i.vendor_id = v.id
-JOIN matching_results m ON i.id = m.invoice_id
-WHERE i.created_at >= NOW() - INTERVAL '30 days'
-GROUP BY v.name
-ORDER BY total_invoices DESC;
-
--- Common discrepancy types
-SELECT 
-    discrepancy_type,
-    COUNT(*) as occurrences,
-    AVG(resolution_time_hours) as avg_resolution_time
-FROM matching_discrepancies
-WHERE created_at >= NOW() - INTERVAL '30 days'
-GROUP BY discrepancy_type
-ORDER BY occurrences DESC;
+    COUNT(*) FILTER (WHERE match_type = 'perfect') as perfect_matches,
+    COUNT(*) FILTER (WHERE match_type = 'partial') as partial_matches,
+    COUNT(*) FILTER (WHERE match_type = 'no_match') as no_matches,
+    AVG(processing_time) as avg_processing_time,
+    SUM(invoice_amount) as total_value
+FROM 
+    invoice_matching_results
+WHERE 
+    processed_date >= CURRENT_DATE - INTERVAL '6 months'
+GROUP BY 
+    DATE_TRUNC('month', processed_date)
+ORDER BY 
+    month DESC;
 ```
 
 ## Best Practices
 
 <Steps>
-  <Step title="Maintain Clean Master Data">
-    - Keep vendor information updated
-    - Standardize product codes
-    - Regular PO cleanup
+  <Step title="Configureer Toleranties Zorgvuldig">
+    - Start met conservatieve toleranties
+    - Analyseer historische data
+    - Pas aan per leverancier/categorie
+    - Review regelmatig
   </Step>
   
-  <Step title="Configure Appropriate Tolerances">
-    - Start conservative, relax gradually
-    - Different rules for different vendors
-    - Monitor and adjust based on results
+  <Step title="Implementeer Exception Handling">
+    - Definieer duidelijke escalatie paden
+    - Log alle discrepanties
+    - Train medewerkers op edge cases
+    - Automatiseer waar mogelijk
   </Step>
   
-  <Step title="Handle Exceptions Promptly">
-    - Quick resolution prevents backlogs
-    - Learn from repeated issues
-    - Update rules based on patterns
+  <Step title="Monitor Performance">
+    - Track match rates per leverancier
+    - Analyseer processing times
+    - Identificeer bottlenecks
+    - Optimaliseer continu
   </Step>
   
-  <Step title="Regular Audits">
-    - Sample check auto-approved invoices
-    - Review tolerance effectiveness
-    - Ensure compliance
+  <Step title="Maintain Data Quality">
+    - Standardiseer vendor master data
+    - Valideer PO data bij creatie
+    - Enforce GR discipline
+    - Regular data cleansing
   </Step>
 </Steps>
 
-## Integration Points
+## Troubleshooting
 
-<Card title="ERP Integration" icon="plug">
-  The 3-way matching system integrates with:
+### Veelvoorkomende Issues
+
+<AccordionGroup>
+  <Accordion title="Lage Match Rates">
+    **Symptomen**: < 70% automatische matches
+    
+    **Mogelijke oorzaken**:
+    - Te strikte toleranties
+    - Inconsistente vendor data
+    - Ontbrekende PO referenties
+    - Timing issues (GR niet op tijd)
+    
+    **Oplossingen**:
+    - Review tolerantie settings
+    - Vendor data cleanup project
+    - Training voor PO referenties
+    - Implementeer GR deadlines
+  </Accordion>
   
-  - **Purchase Order Systems**: Real-time PO retrieval
-  - **Warehouse Management**: Goods receipt data
-  - **Accounting Systems**: Approval status updates
-  - **Payment Systems**: Release approved payments
-  - **Reporting Tools**: Analytics and dashboards
-</Card>
-
-## Next Steps
-
-- [API Reference](/3wm-project/api-reference/matching) - Matching API endpoints
-- [Best Practices](/3wm-project/guides/best-practices) - Optimization tips
-- [Document Processing](/3wm-project/features/document-processing) - Processing pipeline
-
----
-
-*Built with ❤️ by [Sky Dust](https://skydust.io)* 
+  <Accordion title="Performance Issues">
+    **Symptomen**: Trage matching (> 30 sec)
+    
+    **Mogelijke oorzaken**:
+    - Grote datasets
+    - Inefficiënte queries
+    - Geen proper indexing
+    - Memory limitations
+    
+    **Oplossingen**:
+    - Implementeer caching
+    - Optimize database indexes
+    - Use parallel processing
+    - Scale infrastructure
+  </Accordion>
+  
+  <Accordion title="False Positives">
+    **Symptomen**: Incorrecte automatische goedkeuringen
+    
+    **Mogelijke oorzaken**:
+    - Te ruime toleranties
+    - Duplicate PO's
+    - Vendor mapping issues
+    - Logic bugs
+    
+    **Oplossingen**:
+    - Tighten tolerances gradually
+    - Implement duplicate checks
+    - Review vendor mappings
+    - Add validation rules
+  </Accordion>
+</AccordionGroup> 

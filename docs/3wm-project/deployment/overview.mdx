@@ -1,432 +1,529 @@
 ---
-title: "Deployment Overview"
-description: "Deploy 3WM to production environments"
+title: "Deployment Overzicht"
+description: "Deployment strategieën en opties voor 3WM"
 icon: "rocket"
 ---
 
+# Deployment Overzicht
 
-## Deployment Options
+3WM ondersteunt verschillende deployment opties, van lokale development tot enterprise-grade productie omgevingen. Dit overzicht helpt je de beste deployment strategie te kiezen.
 
-3WM supports multiple deployment strategies to fit your infrastructure needs.
+## Deployment Opties
 
 <CardGroup cols={3}>
-  <Card title="Docker Compose" icon="docker" href="/3wm-project/deployment/docker">
-    Single server deployment with Docker Compose
+  <Card title="Local Development" icon="laptop-code">
+    **Voor**: Developers & Testing
+    - Direct op je machine
+    - Hot reloading
+    - Debug tools
+    - Snelle iteraties
   </Card>
   
-  <Card title="Kubernetes" icon="dharmachakra" href="/3wm-project/deployment/kubernetes">
-    Scalable deployment on Kubernetes clusters
+  <Card title="Docker Compose" icon="docker">
+    **Voor**: Staging & Small Teams
+    - Single-server deployment
+    - Alle services included
+    - Easy management
+    - Monitoring stack
   </Card>
   
-  <Card title="Cloud Platforms" icon="cloud" href="/3wm-project/deployment/cloud">
-    Deploy to AWS, GCP, or Azure
+  <Card title="Kubernetes" icon="dharmachakra">
+    **Voor**: Enterprise Production
+    - High availability
+    - Auto-scaling
+    - Multi-region support
+    - Zero-downtime updates
   </Card>
 </CardGroup>
 
-## Production Requirements
+## System Requirements
 
-### System Requirements
+### Minimum Requirements
 
 <Tabs>
-  <Tab title="Minimum">
-    - **CPU**: 4 cores
-    - **RAM**: 16GB
-    - **Storage**: 100GB SSD
-    - **Network**: 100 Mbps
-    - **OS**: Ubuntu 20.04+
+  <Tab title="Development">
+    ```yaml
+    hardware:
+      cpu: 4 cores
+      ram: 8 GB
+      storage: 20 GB SSD
+      
+    software:
+      os: Ubuntu 20.04+ / macOS 12+ / Windows WSL2
+      python: 3.13+
+      nodejs: 20.x LTS
+      docker: 24.0+ (optional)
+    ```
   </Tab>
   
-  <Tab title="Recommended">
-    - **CPU**: 8 cores
-    - **RAM**: 32GB
-    - **Storage**: 500GB SSD
-    - **Network**: 1 Gbps
-    - **OS**: Ubuntu 22.04 LTS
-  </Tab>
-  
-  <Tab title="High Performance">
-    - **CPU**: 16+ cores
-    - **RAM**: 64GB+
-    - **Storage**: 1TB+ NVMe
-    - **Network**: 10 Gbps
-    - **GPU**: Optional for OCR
+  <Tab title="Production">
+    ```yaml
+    hardware:
+      cpu: 8+ cores
+      ram: 16+ GB
+      storage: 100+ GB SSD
+      network: 100+ Mbps
+      
+    software:
+      os: Ubuntu 22.04 LTS
+      docker: 24.0+
+      kubernetes: 1.28+ (optional)
+      monitoring: Prometheus + Grafana
+    ```
   </Tab>
 </Tabs>
 
-### External Services
-
-Before deployment, ensure you have:
-
-1. **PostgreSQL Database** (managed or self-hosted)
-2. **Neo4j Instance** (Aura recommended)
-3. **Supabase Project** (for vectors and storage)
-4. **Redis Instance** (managed or self-hosted)
-5. **OpenAI API Key** with sufficient credits
-
-## Pre-Deployment Checklist
-
-<Steps>
-  <Step title="Security Configuration">
-    - Generate secure JWT secrets
-    - Configure CORS origins
-    - Set up SSL certificates
-    - Configure firewall rules
-    - Enable audit logging
-  </Step>
-  
-  <Step title="Database Setup">
-    - Create production databases
-    - Configure connection pooling
-    - Set up backups
-    - Enable monitoring
-    - Configure replication
-  </Step>
-  
-  <Step title="Environment Configuration">
-    - Set all production environment variables
-    - Configure rate limiting
-    - Set appropriate log levels
-    - Configure email settings
-    - Set up webhook endpoints
-  </Step>
-  
-  <Step title="Monitoring Setup">
-    - Deploy Prometheus
-    - Configure Grafana dashboards
-    - Set up alerts
-    - Configure log aggregation
-    - Enable APM if needed
-  </Step>
-</Steps>
-
-## Environment Variables
-
-### Required Variables
-
-```env
-# Application
-ENVIRONMENT=production
-SECRET_KEY=<generate-secure-key>
-API_BASE_URL=https://api.yourdomain.com
-
-# Database
-DATABASE_URL=postgresql://user:pass@host:5432/3wm_prod
-REDIS_URL=redis://user:pass@host:6379/0
-
-# Supabase
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=<anon-key>
-SUPABASE_SERVICE_KEY=<service-key>
-
-# Neo4j
-NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=<secure-password>
-
-# OpenAI
-OPENAI_API_KEY=sk-<your-key>
-
-# JWT
-JWT_SECRET_KEY=<generate-secure-key>
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# Security
-ALLOWED_ORIGINS=https://app.yourdomain.com,https://admin.yourdomain.com
-TRUSTED_HOSTS=api.yourdomain.com
-```
-
-### Optional Variables
-
-```env
-# Performance
-WORKERS=4
-MAX_CONNECTIONS=100
-CONNECTION_TIMEOUT=30
-
-# Monitoring
-PROMETHEUS_ENABLED=true
-METRICS_PORT=9090
-LOG_LEVEL=INFO
-
-# Features
-ENABLE_WEBHOOKS=true
-ENABLE_BATCH_PROCESSING=true
-MAX_UPLOAD_SIZE=52428800  # 50MB
-```
-
-## Deployment Architecture
+## Architecture Overview
 
 ```mermaid
 graph TB
-    subgraph "Internet"
-        A[Users]
-        B[API Clients]
-    end
-    
-    subgraph "Edge Layer"
-        C[CDN/CloudFlare]
-        D[WAF]
+    subgraph "External Services"
+        O[Outlook/Email]
+        AI[OpenAI/Claude]
+        AV[AccountView]
     end
     
     subgraph "Load Balancer"
-        E[NGINX/ALB]
+        LB[Nginx/Traefik]
     end
     
     subgraph "Application Layer"
-        F[API Server 1]
-        G[API Server 2]
-        H[API Server N]
+        API[FastAPI Backend]
+        WEB[Next.js Frontend]
+        WS[WebSocket Server]
+    end
+    
+    subgraph "Processing Layer"
+        LG[LangGraph Engine]
+        AG[AI Agents]
+        MCP[MCP Tools]
     end
     
     subgraph "Data Layer"
-        I[(PostgreSQL)]
-        J[(Neo4j)]
-        K[(Redis)]
-        L[Supabase]
+        PG[(Supabase PostgreSQL)]
+        RD[(Redis Cache)]
+        S3[Object Storage]
     end
     
     subgraph "Monitoring"
-        M[Prometheus]
-        N[Grafana]
-        O[Logs]
+        PR[Prometheus]
+        GR[Grafana]
+        LF[Langfuse]
     end
     
-    A --> C
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    E --> G
-    E --> H
-    F --> I
-    F --> J
-    F --> K
-    F --> L
-    G --> I
-    G --> J
-    G --> K
-    G --> L
-    H --> I
-    H --> J
-    H --> K
-    H --> L
-    F --> M
-    G --> M
-    H --> M
-    M --> N
+    O --> LB
+    LB --> API
+    LB --> WEB
+    API --> LG
+    LG --> AG
+    AG --> MCP
+    API --> PG
+    API --> RD
+    API --> S3
+    AG --> AI
+    API --> AV
+    API --> PR
+    PR --> GR
+    AG --> LF
 ```
 
-## Security Considerations
+## Service Components
 
-<Warning>
-  Production deployments must implement proper security measures to protect sensitive financial data.
-</Warning>
-
-### Security Checklist
-
-- ✅ Use HTTPS everywhere
-- ✅ Enable firewall rules
-- ✅ Implement rate limiting
-- ✅ Use secure passwords
-- ✅ Enable audit logging
-- ✅ Regular security updates
-- ✅ Encrypt data at rest
-- ✅ Implement backup strategy
-- ✅ Set up monitoring alerts
-- ✅ Configure CORS properly
-
-### Network Security
-
-```nginx
-# Example NGINX configuration
-server {
-    listen 443 ssl http2;
-    server_name api.yourdomain.com;
-    
-    ssl_certificate /etc/ssl/certs/api.crt;
-    ssl_certificate_key /etc/ssl/private/api.key;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Strict-Transport-Security "max-age=31536000" always;
-    
-    location / {
-        proxy_pass http://app:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-## Scaling Strategies
-
-### Horizontal Scaling
-
-<Tip>
-  The application is stateless and can be scaled horizontally by adding more instances.
-</Tip>
-
-1. **Application Servers**: Add more API server instances
-2. **Database Connections**: Use connection pooling
-3. **Cache Layer**: Implement Redis clustering
-4. **Load Balancing**: Use round-robin or least connections
-
-### Vertical Scaling
-
-When to scale vertically:
-- OCR processing bottlenecks
-- Large document processing
-- Complex AI queries
-- Memory-intensive operations
-
-## Monitoring & Observability
-
-### Key Metrics to Monitor
+### Core Services
 
 <CardGroup cols={2}>
-  <Card title="Application Metrics" icon="chart-line">
-    - Request rate
-    - Response times
-    - Error rates
-    - Queue lengths
+  <Card title="Backend API" icon="server">
+    **FastAPI Application**
+    - REST API endpoints
+    - WebSocket support
+    - Authentication/Authorization
+    - Rate limiting
+    - Async processing
   </Card>
   
-  <Card title="Business Metrics" icon="chart-pie">
-    - Documents processed
-    - Processing accuracy
-    - User activity
-    - API usage
+  <Card title="Frontend UI" icon="browser">
+    **Next.js Application**
+    - React 19 UI
+    - CopilotKit integration
+    - Real-time updates
+    - PDF viewer
+    - Responsive design
   </Card>
   
-  <Card title="Infrastructure Metrics" icon="server">
-    - CPU usage
-    - Memory usage
-    - Disk I/O
-    - Network traffic
+  <Card title="AI Processing" icon="brain">
+    **LangGraph Engine**
+    - Agent orchestration
+    - Workflow management
+    - State persistence
+    - Error recovery
+    - Parallel execution
   </Card>
   
-  <Card title="External Services" icon="plug">
-    - Database connections
-    - API rate limits
-    - Service availability
-    - Response times
+  <Card title="Data Storage" icon="database">
+    **Supabase + Redis**
+    - PostgreSQL database
+    - Vector storage (pgvector)
+    - Redis caching
+    - File storage
+    - Real-time subscriptions
   </Card>
 </CardGroup>
 
-### Alerting Rules
+### Supporting Services
+
+<CardGroup cols={3}>
+  <Card title="Monitoring" icon="chart-line">
+    - Prometheus metrics
+    - Grafana dashboards
+    - Custom alerts
+    - Performance tracking
+  </Card>
+  
+  <Card title="Observability" icon="eye">
+    - Langfuse LLM tracking
+    - Structured logging
+    - Distributed tracing
+    - Error tracking
+  </Card>
+  
+  <Card title="Security" icon="shield">
+    - JWT authentication
+    - TLS encryption
+    - Rate limiting
+    - Input validation
+  </Card>
+</CardGroup>
+
+## Deployment Strategies
+
+### 1. Blue-Green Deployment
 
 ```yaml
-# Example Prometheus alerting rules
-groups:
-  - name: 3wm_alerts
-    rules:
-      - alert: HighErrorRate
-        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
-        for: 5m
-        annotations:
-          summary: "High error rate detected"
-          
-      - alert: SlowProcessing
-        expr: histogram_quantile(0.95, document_processing_seconds) > 10
-        for: 10m
-        annotations:
-          summary: "Document processing is slow"
-          
-      - alert: LowDiskSpace
-        expr: disk_free_percent < 10
-        for: 5m
-        annotations:
-          summary: "Low disk space on server"
+# Minimale downtime met instant rollback
+stages:
+  1. Deploy to green environment
+  2. Run smoke tests
+  3. Switch traffic to green
+  4. Keep blue as rollback
+  5. Decommission old blue
 ```
+
+### 2. Rolling Updates
+
+```yaml
+# Zero-downtime updates voor Kubernetes
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+```
+
+### 3. Canary Releases
+
+```yaml
+# Graduele rollout met monitoring
+canary:
+  steps:
+    - weight: 10%  # 10% traffic
+      duration: 10m
+    - weight: 50%  # 50% traffic
+      duration: 30m
+    - weight: 100% # Full rollout
+```
+
+## Environment Configuration
+
+### Environment Variables
+
+```bash
+# Core Configuration
+APP_ENV=production
+API_URL=https://api.3wm.example.com
+FRONTEND_URL=https://app.3wm.example.com
+
+# Database
+POSTGRES_URL=postgresql://user:pass@host:5432/3wm
+REDIS_URL=redis://host:6379
+
+# AI Services
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+
+# Authentication
+JWT_SECRET=your-secret-key
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# External Services
+MICROSOFT_CLIENT_ID=...
+MICROSOFT_CLIENT_SECRET=...
+ACCOUNTVIEW_API_KEY=...
+
+# Monitoring
+PROMETHEUS_PORT=9090
+GRAFANA_PORT=3000
+```
+
+### Configuration Management
+
+<Tabs>
+  <Tab title="Docker Secrets">
+    ```yaml
+    # docker-compose.yml
+    services:
+      api:
+        secrets:
+          - openai_key
+          - db_password
+          
+    secrets:
+      openai_key:
+        file: ./secrets/openai_key.txt
+      db_password:
+        file: ./secrets/db_password.txt
+    ```
+  </Tab>
+  
+  <Tab title="Kubernetes Secrets">
+    ```yaml
+    # secret.yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: 3wm-secrets
+    type: Opaque
+    data:
+      openai-key: <base64-encoded>
+      db-password: <base64-encoded>
+    ```
+  </Tab>
+  
+  <Tab title="HashiCorp Vault">
+    ```bash
+    # Vault integration
+    vault kv put secret/3wm/prod \
+      openai_key="sk-..." \
+      db_password="..." \
+      jwt_secret="..."
+    ```
+  </Tab>
+</Tabs>
+
+## Scaling Considerations
+
+### Horizontal Scaling
+
+```yaml
+# Auto-scaling configuration
+autoscaling:
+  api:
+    min_replicas: 2
+    max_replicas: 10
+    target_cpu: 70%
+    target_memory: 80%
+    
+  frontend:
+    min_replicas: 2
+    max_replicas: 5
+    target_cpu: 60%
+    
+  workers:
+    min_replicas: 1
+    max_replicas: 20
+    queue_length_target: 10
+```
+
+### Vertical Scaling
+
+<CardGroup cols={2}>
+  <Card title="API Servers" icon="server">
+    - Start: 2 CPU, 4GB RAM
+    - Scale to: 8 CPU, 16GB RAM
+    - GPU for OCR workloads
+  </Card>
+  
+  <Card title="Database" icon="database">
+    - Start: 4 CPU, 8GB RAM
+    - Scale to: 16 CPU, 64GB RAM
+    - Read replicas for queries
+  </Card>
+</CardGroup>
 
 ## Backup & Recovery
 
 ### Backup Strategy
 
-1. **Database Backups**
-   - Daily automated backups
-   - Point-in-time recovery
-   - Off-site backup storage
-   - Regular restore testing
-
-2. **Document Storage**
-   - Supabase handles backups
-   - Consider additional S3 backup
-   - Implement versioning
-
-3. **Configuration Backups**
-   - Version control for configs
-   - Encrypted secrets backup
-   - Infrastructure as code
+```yaml
+backups:
+  database:
+    frequency: hourly
+    retention: 7 days
+    type: incremental
+    
+  files:
+    frequency: daily
+    retention: 30 days
+    type: full
+    
+  configs:
+    frequency: on-change
+    retention: 90 days
+    type: versioned
+```
 
 ### Disaster Recovery
 
 <Steps>
-  <Step title="Preparation">
-    - Document recovery procedures
-    - Maintain updated runbooks
-    - Regular DR drills
-    - Keep contact lists current
+  <Step title="Regular Backups">
+    - Automated PostgreSQL backups
+    - File storage snapshots
+    - Configuration backups
+    - Test restore procedures
   </Step>
   
-  <Step title="Detection">
-    - Automated monitoring
-    - Alert escalation
-    - Health check endpoints
-    - Status page updates
+  <Step title="Multi-Region Setup">
+    - Primary in EU-West
+    - Standby in EU-Central
+    - Async replication
+    - Failover < 5 minutes
   </Step>
   
-  <Step title="Response">
-    - Follow incident response plan
-    - Activate backup systems
-    - Communicate with stakeholders
-    - Begin recovery process
-  </Step>
-  
-  <Step title="Recovery">
-    - Restore from backups
-    - Verify data integrity
-    - Test system functionality
-    - Monitor for issues
+  <Step title="Recovery Testing">
+    - Monthly DR drills
+    - Document procedures
+    - Measure RTO/RPO
+    - Update runbooks
   </Step>
 </Steps>
+
+## Security Hardening
+
+### Network Security
+
+```yaml
+security:
+  network:
+    - Private subnets for services
+    - Public subnet only for LB
+    - Security groups per service
+    - VPN for admin access
+    
+  encryption:
+    - TLS 1.3 minimum
+    - Encrypt at rest
+    - Rotate certificates
+    - Strong ciphers only
+```
+
+### Access Control
+
+<CardGroup cols={2}>
+  <Card title="Service Accounts" icon="user-shield">
+    - Minimal permissions
+    - Regular rotation
+    - Audit logging
+    - MFA required
+  </Card>
+  
+  <Card title="API Security" icon="key">
+    - Rate limiting
+    - API keys + JWT
+    - IP whitelisting
+    - Request signing
+  </Card>
+</CardGroup>
+
+## Monitoring Setup
+
+### Key Metrics
+
+```yaml
+metrics:
+  application:
+    - Request rate
+    - Response time
+    - Error rate
+    - Queue depth
+    
+  infrastructure:
+    - CPU usage
+    - Memory usage
+    - Disk I/O
+    - Network traffic
+    
+  business:
+    - Invoices processed
+    - Match rate
+    - Processing time
+    - Cost per invoice
+```
+
+### Alert Rules
+
+```yaml
+alerts:
+  critical:
+    - API down > 1 minute
+    - Database unreachable
+    - Disk space < 10%
+    - Error rate > 5%
+    
+  warning:
+    - Response time > 2s
+    - Queue depth > 100
+    - Memory usage > 80%
+    - Certificate expiry < 30d
+```
 
 ## Cost Optimization
 
 ### Resource Optimization
 
-- Use auto-scaling for variable loads
-- Implement caching aggressively
-- Optimize database queries
-- Use CDN for static assets
-- Monitor API usage costs
+<Tabs>
+  <Tab title="Development">
+    - Use spot instances
+    - Scale down after hours
+    - Shared databases
+    - Local caching
+  </Tab>
+  
+  <Tab title="Production">
+    - Reserved instances
+    - Auto-scaling policies
+    - CDN for static assets
+    - Optimize queries
+  </Tab>
+</Tabs>
 
 ### Cost Monitoring
 
-```python
-# Example cost tracking
-costs = {
-    "compute": track_compute_hours(),
-    "storage": track_storage_usage(),
-    "api_calls": {
-        "openai": track_openai_usage(),
-        "neo4j": track_neo4j_queries(),
-    },
-    "bandwidth": track_bandwidth_usage()
-}
+```yaml
+cost_tracking:
+  - Tag all resources
+  - Monitor per service
+  - Set budget alerts
+  - Regular optimization
 ```
 
 ## Next Steps
 
-- [Docker Deployment](/3wm-project/deployment/docker) - Deploy with Docker
-- [Kubernetes Guide](/3wm-project/deployment/kubernetes) - K8s deployment
-- [Monitoring Setup](/3wm-project/deployment/monitoring) - Set up monitoring
-- [Security Guide](/3wm-project/architecture/security) - Security best practices 
+<CardGroup cols={2}>
+  <Card title="Docker Deployment" icon="docker" href="/docs/3wm-project/deployment/docker">
+    Deploy met Docker Compose
+  </Card>
+  
+  <Card title="Kubernetes Setup" icon="dharmachakra" href="/docs/3wm-project/deployment/kubernetes">
+    Enterprise Kubernetes deployment
+  </Card>
+  
+  <Card title="Production Guide" icon="rocket" href="/docs/3wm-project/deployment/production">
+    Production best practices
+  </Card>
+  
+  <Card title="Monitoring Setup" icon="chart-line" href="/docs/3wm-project/deployment/monitoring">
+    Observability en monitoring
+  </Card>
+</CardGroup> 

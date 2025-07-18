@@ -206,7 +206,7 @@ The matching agent performs comprehensive validation:
         matches = {
             "po_number": invoice.po_number == po.number,
             "vendor": invoice.vendor_id == po.vendor_id,
-            "total_tolerance": abs(invoice.total - po.total) <= po.total * 0.05,
+            "total_tolerance": abs(invoice.total - po.total) &lt;= po.total * 0.05,
             "line_items": match_line_items(invoice.items, po.items),
             "currency": invoice.currency == po.currency
         }
@@ -299,7 +299,7 @@ The validation agent applies comprehensive checks:
   <Card title="Data Validation" icon="check-circle">
     - VAT number format and checksum
     - IBAN validation
-    - Date logic (invoice date <= due date)
+    - Date logic (invoice date &lt;= due date)
     - Currency code validation
     - Mathematical accuracy
   </Card>

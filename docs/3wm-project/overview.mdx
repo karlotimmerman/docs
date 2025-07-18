@@ -1,196 +1,294 @@
 ---
-title: 3WM Systeemoverzicht
-description: Begrijp de kernconcepten en architectuur van het 3WM AI documentverwerkingssysteem
+title: "Systeemoverzicht"
+description: "Technisch overzicht van het 3WM AI documentverwerkingssysteem"
+icon: "book"
 ---
 
 # 3WM Systeemoverzicht
 
-3WM (3-Weg Matching) is een AI-gestuurd documentverwerkingssysteem dat factuurverwerking automatiseert met behulp van geavanceerde machine learning en intelligente workflow-orchestratie.
+3WM is een enterprise-grade AI-powered factuurautomatiseringssysteem gebouwd op moderne cloud-native technologieën. Het systeem gebruikt state-of-the-art AI modellen en intelligente workflow orchestratie voor end-to-end factuurverwerking.
 
-## Wat is 3WM?
+## Core Architectuur
 
-3WM is een enterprise-grade oplossing die:
+### LangGraph Orchestratie
 
-<CardGroup cols={2}>
-  <Card title="Documenten Automatiseert" icon="file-invoice">
-    Verwerkt facturen, inkooporders en ontvangstbewijzen automatisch
-  </Card>
-  <Card title="AI-gestuurde Extractie" icon="brain">
-    Gebruikt state-of-the-art AI voor nauwkeurige gegevensextractie
-  </Card>
-  <Card title="Intelligente Matching" icon="link">
-    Voert automatische 3-weg matching uit voor verificatie
-  </Card>
-  <Card title="Naadloze Integratie" icon="plug">
-    Integreert met bestaande systemen via moderne APIs
-  </Card>
-</CardGroup>
+Het hart van 3WM is gebouwd op **LangGraph 0.3.21+**, wat complexe multi-agent workflows mogelijk maakt:
 
-## Kernfunctionaliteiten
+```python
+# Voorbeeld van onze agent graph implementatie
+from langgraph.graph import StateGraph, END
+from app.agents import ExtractionAgent, ValidationAgent, MatchingAgent, DecisionAgent
 
-### 1. Documentverwerking
-- **Multi-formaat ondersteuning**: PDF, afbeeldingen, gescande documenten
-- **AI-extractie**: Automatische herkenning van factuurvelden
-- **OCR-fallback**: Voor gescande of afbeeldingsgebaseerde documenten
-- **Validatie**: Automatische controle van geëxtraheerde gegevens
+# Agent orchestratie met conditionele routing
+builder = StateGraph(InvoiceState)
+builder.add_node("extraction", ExtractionAgent())
+builder.add_node("validation", ValidationAgent())
+builder.add_node("matching", MatchingAgent())
+builder.add_node("decision", DecisionAgent())
 
-### 2. 3-Weg Matching
-- **Automatische matching**: Koppel facturen aan PO's en ontvangstbewijzen
-- **Fuzzy matching**: Intelligente matching ook bij kleine verschillen
-- **Discrepantie-detectie**: Identificeer en rapporteer afwijkingen
-- **Goedkeuringsworkflows**: Configureerbare goedkeuringsprocessen
-
-### 3. AI Agents
-- **Extractie Agent**: Haalt gegevens uit documenten
-- **Validatie Agent**: Controleert gegevensintegriteit
-- **Matching Agent**: Voert 3-weg matching uit
-- **Beslissings Agent**: Bepaalt vervolgacties
-
-### 4. Integraties
-- **E-mail**: Microsoft Outlook integratie
-- **Boekhouding**: AccountView export
-- **API**: RESTful API voor custom integraties
-- **Webhooks**: Real-time gebeurtenisnotificaties
-
-## Technische Architectuur
-
-<Tabs>
-  <Tab title="Backend Stack">
-    ```python
-    # Core technologieën
-    - Python 3.13+ met uv package manager
-    - FastAPI voor high-performance APIs
-    - LangGraph 0.3.21+ voor workflow orchestratie
-    - LangChain 0.3.22+ voor AI-integratie
-    - Supabase voor database en authenticatie
-    - Redis voor caching en queues
-    ```
-  </Tab>
-  
-  <Tab title="Frontend Stack">
-    ```typescript
-    // Moderne web technologieën
-    - Next.js 14 met App Router
-    - TypeScript voor type-safety
-    - CopilotKit voor AI-assistentie
-    - Radix UI voor toegankelijke componenten
-    - Tailwind CSS voor styling
-    - Bun als package manager
-    ```
-  </Tab>
-  
-  <Tab title="AI/ML Stack">
-    ```yaml
-    # AI en Machine Learning
-    - OpenAI GPT-4 voor natuurlijke taalverwerking
-    - Claude 3 voor documentanalyse
-    - Custom ML-modellen voor factuurherkenning
-    - Tesseract OCR voor tekstextractie
-    - LangGraph voor agent-orchestratie
-    ```
-  </Tab>
-</Tabs>
-
-## Systeemvereisten
-
-<AccordionGroup>
-  <Accordion title="Hardware Vereisten">
-    - **CPU**: 4+ cores (8+ aanbevolen voor productie)
-    - **RAM**: 8GB minimum (16GB+ aanbevolen)
-    - **Opslag**: 50GB+ voor documenten en database
-    - **Netwerk**: Stabiele internetverbinding voor cloud services
-  </Accordion>
-  
-  <Accordion title="Software Vereisten">
-    - **OS**: Linux (Ubuntu 20.04+), macOS, of Windows met WSL2
-    - **Python**: 3.13 of hoger
-    - **Node.js**: 18.x of hoger (voor frontend)
-    - **Docker**: 20.x+ (optioneel maar aanbevolen)
-    - **Supabase**: Account voor database en authenticatie
-  </Accordion>
-  
-  <Accordion title="Cloud Services">
-    - **Supabase**: PostgreSQL database, authenticatie, en opslag
-    - **OpenAI/Anthropic**: API toegang voor AI-modellen
-    - **Microsoft Azure**: Voor Outlook integratie
-    - **Redis Cloud**: Voor gedistribueerde caching (optioneel)
-  </Accordion>
-</AccordionGroup>
-
-## Workflow Overzicht
-
-```mermaid
-graph LR
-    A[Document Upload] --> B[AI Extractie]
-    B --> C[Validatie]
-    C --> D[3-Weg Matching]
-    D --> E{Match Gevonden?}
-    E -->|Ja| F[Auto-goedkeuring]
-    E -->|Nee| G[Handmatige Review]
-    F --> H[Boekhouding Export]
-    G --> H
+# Intelligente routing gebaseerd op confidence scores
+builder.add_conditional_edges(
+    "extraction",
+    lambda x: "validation" if x.confidence > 0.8 else "manual_review"
+)
 ```
 
-## Belangrijkste Voordelen
+### AI Agent Architectuur
 
-<CardGroup cols={3}>
-  <Card title="Tijdsbesparing" icon="clock">
-    Verminder verwerkingstijd met 80% door automatisering
+<CardGroup cols={2}>
+  <Card title="Extraction Agent" icon="file-invoice">
+    **Multi-method extraction** met GPT-4o Vision als primaire engine:
+    - GPT-4 Vision voor complexe layouts
+    - DocTR OCR als fallback
+    - LlamaCloud voor gestructureerde data
+    - Zelf-validatie van resultaten
   </Card>
-  <Card title="Nauwkeurigheid" icon="bullseye">
-    99%+ extractienauwkeurigheid met AI-modellen
+  
+  <Card title="Validation Agent" icon="shield-check">
+    **Comprehensive validation** van geëxtraheerde data:
+    - VAT nummer verificatie
+    - IBAN validatie via algoritmes
+    - Datumlogica controles
+    - Business rule compliance
   </Card>
-  <Card title="Schaalbaarheid" icon="chart-line">
-    Verwerk duizenden documenten per dag
+  
+  <Card title="Matching Agent" icon="link">
+    **3-Way matching engine** met fuzzy logic:
+    - Invoice ↔ PO matching
+    - PO ↔ Goods Receipt matching
+    - Tolerantie-gebaseerde matching
+    - Line-item reconciliation
   </Card>
-  <Card title="Compliance" icon="shield-check">
-    Voldoet aan Nederlandse wetgeving en GDPR
-  </Card>
-  <Card title="Integratie" icon="puzzle">
-    Naadloze koppeling met bestaande systemen
-  </Card>
-  <Card title="ROI" icon="coins">
-    Gemiddeld 6 maanden terugverdientijd
+  
+  <Card title="Decision Agent" icon="brain">
+    **Autonome besluitvorming** voor workflow routing:
+    - Automatische goedkeuring binnen toleranties
+    - Escalatie naar juiste approvers
+    - Fraud detectie signalen
+    - Leer van historische beslissingen
   </Card>
 </CardGroup>
 
-## Use Cases
+## Technische Stack
 
-### Factuurverwerking
-- Automatische extractie van leverancier, bedrag, datum
-- Validatie tegen inkooporders
-- Goedkeuringsrouting op basis van bedrag
+### Backend Infrastructure
 
-### Ontvangstverificatie
-- Match facturen met leveringen
-- Identificeer kwantiteitsverschillen
-- Voorkom dubbele betalingen
+```yaml
+# Productie stack overzicht
+services:
+  api:
+    framework: FastAPI
+    python: "3.13+"
+    async: true
+    workers: uvicorn[standard]
+    
+  ai_stack:
+    orchestration: LangGraph 0.3.21+
+    llm_primary: OpenAI GPT-4o
+    llm_secondary: Anthropic Claude 3
+    embeddings: OpenAI text-embedding-3
+    observability: Langfuse 2.60+
+    
+  data_layer:
+    primary_db: Supabase (PostgreSQL)
+    cache: Redis
+    file_storage: Supabase Storage
+    vector_db: pgvector
+    
+  integration:
+    email: Microsoft Graph API
+    accounting: AccountView Export API
+    mcp: Model Context Protocol 1.9+
+    copilot: CopilotKit 1.9.3+
+```
 
-### Compliance & Audit
-- Volledige audit trail
-- Automatische archivering
-- Rapportage voor controles
+### Frontend Architecture
 
-## Volgende Stappen
+Het frontend is gebouwd met moderne React technologieën:
+
+- **Next.js 15.2.4** met App Router voor optimale performance
+- **TypeScript 5.8+** voor type safety
+- **CopilotKit** voor real-time AI assistentie
+- **Radix UI** voor toegankelijke componenten
+- **Bun** als snelle package manager
+
+## Data Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User/Email
+    participant F as Frontend
+    participant A as FastAPI
+    participant L as LangGraph
+    participant AI as AI Agents
+    participant DB as Supabase
+    participant E as External Systems
+    
+    U->>F: Upload/Email factuur
+    F->>A: POST /api/v1/upload
+    A->>L: Start workflow
+    L->>AI: Extract (GPT-4o)
+    AI-->>L: Extracted data
+    L->>AI: Validate
+    AI-->>L: Validation results
+    L->>DB: Query PO/GR data
+    DB-->>L: Historical data
+    L->>AI: 3-way match
+    AI-->>L: Match results
+    L->>AI: Decision
+    AI-->>L: Approval/Escalation
+    L->>E: Export to AccountView
+    L-->>A: Workflow complete
+    A-->>F: Real-time updates
+    F-->>U: Status & resultaten
+```
+
+## Security & Compliance
+
+### Authenticatie & Autorisatie
+
+- **JWT-based authentication** via Supabase Auth
+- **Role-based access control** (RBAC)
+- **Session management** met refresh tokens
+- **API key authentication** voor service accounts
+
+### Data Security
 
 <Steps>
-  <Step title="Installatie">
-    Volg onze [installatie handleiding](/docs/3wm-project/getting-started/installation) om 3WM op te zetten
+  <Step title="Encryptie">
+    - TLS 1.3 voor alle API communicatie
+    - AES-256 encryptie at rest in Supabase
+    - Encrypted file uploads met pre-signed URLs
   </Step>
-  <Step title="Configuratie">
-    Configureer het systeem volgens uw [bedrijfsprocessen](/docs/3wm-project/getting-started/configuration)
+  
+  <Step title="Compliance">
+    - GDPR compliant data handling
+    - Audit logging van alle acties
+    - Data retention policies
+    - Right to deletion support
   </Step>
-  <Step title="Integratie">
-    Koppel 3WM met uw [bestaande systemen](/docs/3wm-project/api-reference/overview)
-  </Step>
-  <Step title="Training">
-    Train uw team met onze [best practices](/docs/3wm-project/guides/best-practices)
+  
+  <Step title="Rate Limiting">
+    - Slowapi voor API rate limiting
+    - Configureerbare limits per endpoint
+    - DDoS bescherming
   </Step>
 </Steps>
 
-## Support & Resources
+## Monitoring & Observability
 
-- **Documentatie**: U bent hier! Verken alle mogelijkheden
-- **API Referentie**: [Technische API documentatie](/docs/3wm-project/api-reference/overview)
-- **Community**: [Slack kanaal](https://skydust.ai/slack) voor vragen
-- **Support**: support@skydust.ai voor enterprise ondersteuning 
+### LLM Observability met Langfuse
+
+```python
+# Automatische tracing van alle LLM calls
+from langfuse import Langfuse
+
+langfuse = Langfuse(
+    public_key=settings.LANGFUSE_PUBLIC_KEY,
+    secret_key=settings.LANGFUSE_SECRET_KEY
+)
+
+# Elke LLM call wordt automatisch getraceerd
+# inclusief prompts, responses, latency, en kosten
+```
+
+### Metrics & Monitoring
+
+- **Prometheus** metrics collection
+- **Grafana** dashboards voor visualisatie
+- **Structured logging** met contextual information
+- **Error tracking** en alerting
+
+## Performance & Schaling
+
+### Optimalisaties
+
+- **Async/await** throughout voor maximale throughput
+- **Redis caching** voor frequent opgevraagde data
+- **Connection pooling** voor database efficiency
+- **Lazy loading** van AI modellen
+
+### Schaalbaarheid
+
+<Tabs>
+  <Tab title="Horizontaal">
+    - Kubernetes-ready deployment
+    - Auto-scaling op basis van CPU/memory
+    - Load balancing met health checks
+    - Stateless API design
+  </Tab>
+  
+  <Tab title="Verticaal">
+    - GPU support voor on-premise OCR
+    - Memory-optimized instances
+    - Database read replicas
+    - Caching layers
+  </Tab>
+</Tabs>
+
+## Integraties
+
+### Microsoft Outlook
+
+```python
+# Native Graph API integratie
+from msgraph import GraphServiceClient
+
+# Automatisch ophalen van facturen uit email
+async def process_outlook_invoices():
+    messages = await graph_client.me.messages.get()
+    for message in messages.value:
+        if has_invoice_attachment(message):
+            await process_invoice(message.attachments)
+```
+
+### AccountView Export
+
+- Direct API integratie voor factuur export
+- Mapping van 3WM velden naar AccountView
+- Automatische journaalpost suggesties
+- Error handling en retry mechanismen
+
+## Development Experience
+
+### Local Development
+
+```bash
+# Quick start met Docker Compose
+docker-compose up -d
+
+# Of native development
+uv sync
+make dev
+
+# Frontend development
+cd client && bun dev
+```
+
+### Testing & Quality
+
+- **Pytest** voor backend testing
+- **Jest** voor frontend testing
+- **Ruff** voor code formatting
+- **Type checking** met mypy
+- **Pre-commit hooks** voor kwaliteit
+
+## Toekomstige Ontwikkelingen
+
+<CardGroup cols={2}>
+  <Card title="Neo4j Integration" icon="diagram-project">
+    Knowledge graph voor vendor relationships en patterns
+  </Card>
+  
+  <Card title="Advanced Analytics" icon="chart-line">
+    Predictive analytics voor spend optimization
+  </Card>
+  
+  <Card title="Multi-language Support" icon="language">
+    Uitbreiding naar meer talen dan Nederlands/Engels
+  </Card>
+  
+  <Card title="Mobile App" icon="mobile">
+    Native mobile apps voor approval workflows
+  </Card>
+</CardGroup> 

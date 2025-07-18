@@ -31,23 +31,6 @@
       "url": "api-reference"
     }
   ],
-  "anchors": [
-    {
-      "name": "Documentatie",
-      "icon": "book-open-cover",
-      "url": "https://docs.skydust.ai"
-    },
-    {
-      "name": "Community",
-      "icon": "slack",
-      "url": "https://skydust.ai/slack"
-    },
-    {
-      "name": "Blog",
-      "icon": "newspaper",
-      "url": "https://skydust.ai/blog"
-    }
-  ],
   "navigation": [
     {
       "group": "Aan de slag",

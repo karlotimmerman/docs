@@ -1,417 +1,478 @@
 ---
 title: 'AI Agents'
-description: 'LangGraph-powered intelligent agents for document processing'
+description: 'LangGraph-powered intelligent agents voor documentverwerking'
 icon: 'robot'
 ---
 
-# AI Agents System
+# AI Agent Systeem
 
-The 3WM system uses LangGraph to orchestrate multiple specialized AI agents that work together to process invoices intelligently.
+3WM gebruikt een geavanceerd multi-agent systeem gebouwd op **LangGraph 0.3.21+** voor intelligente factuurverwerking. Elke agent heeft een specifieke verantwoordelijkheid en werkt samen via een state-based orchestratie engine.
 
-## Agent Architecture
+## LangGraph Orchestratie
 
-<Card title="LangGraph Workflow Engine" icon="diagram-project">
-  3WM uses LangGraph's stateful graph architecture to coordinate multiple agents:
-  - **State Management**: Shared state across all agents
-  - **Conditional Routing**: Dynamic workflow based on document type and confidence
-  - **Tool Integration**: MCP-powered tools for external data access
-  - **Error Handling**: Graceful fallbacks and retry mechanisms
+<Card title="State-Based Workflow Engine" icon="diagram-project">
+  Het hart van 3WM is de LangGraph orchestrator die:
+  - **Stateful coordination** tussen agents mogelijk maakt
+  - **Conditional routing** op basis van confidence scores
+  - **Parallel processing** voor optimale performance
+  - **Automatic retry** met exponential backoff
+  - **Tool integration** via Model Context Protocol (MCP)
 </Card>
+
+### Workflow Implementatie
+
+```python
+# Uit app/agents/graph.py
+from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode, tools_condition
+
+def create_agent_graph():
+    """Create and compile the agent graph."""
+    
+    # Initialize the graph
+    builder = StateGraph(AgentState)
+    
+    # Add nodes
+    builder.add_node("parse_query", parse_query)
+    builder.add_node("assistant", assistant)
+    builder.add_node("tools", ToolNode(get_all_tools()))
+    builder.add_node("format_response", format_response)
+    
+    # Conditional routing
+    builder.add_conditional_edges(
+        "assistant",
+        should_continue,
+        {
+            "tools": "tools",
+            "format_response": "format_response",
+            END: END
+        }
+    )
+    
+    return builder.compile()
+```
 
 ## Core Agents
 
 ### 1. Extraction Agent
 
-The extraction agent handles initial document processing:
+De **ExtractionAgent** gebruikt een multi-method approach voor betrouwbare data extractie:
 
 ```python
-# From app/agents/extraction_agent.py
+# Uit app/agents/extraction_agent.py
 class ExtractionAgent:
-    """Extracts structured data from documents"""
+    """Autonomous extraction agent with decision-making capabilities."""
     
     def __init__(self):
-        self.llm = ChatOpenAI(model="gpt-4-turbo", temperature=0)
-        self.tools = [
-            pdf_extract_tool,
-            ocr_fallback_tool,
-            text_parser_tool
-        ]
-    
-    async def extract(self, document: Document) -> ExtractedData:
-        # Try PDF text extraction first
-        text = await self.pdf_extract_tool(document)
-        
-        # Fall back to OCR if needed
-        if not text or len(text) < 100:
-            text = await self.ocr_fallback_tool(document)
-        
-        # Parse structured fields
-        return await self.parse_invoice_fields(text)
-```
-
-<CardGroup cols={2}>
-  <Card title="Capabilities" icon="tools">
-    - PDF text extraction
-    - OCR fallback for scans
-    - Multi-language support
-    - Field confidence scoring
-  </Card>
-  
-  <Card title="Output" icon="file-export">
-    - Vendor information
-    - Invoice number & date
-    - Line items with amounts
-    - Tax calculations
-  </Card>
-</CardGroup>
-
-### 2. Validation Agent
-
-Ensures data quality and consistency:
-
-```python
-# From app/agents/validation_agent.py
-class ValidationAgent:
-    """Validates extracted data against business rules"""
-    
-    async def validate(self, state: AgentState) -> ValidationResult:
-        extracted_data = state["extracted_data"]
-        
-        # Run validation checks
-        checks = {
-            "vendor_exists": await self.check_vendor(extracted_data.vendor),
-            "vat_valid": await self.validate_vat(extracted_data.vat_number),
-            "totals_match": self.verify_calculations(extracted_data),
-            "duplicate_check": await self.check_duplicates(extracted_data)
-        }
-        
-        # Calculate confidence score
-        confidence = sum(1 for check in checks.values() if check) / len(checks)
-        
-        return ValidationResult(
-            is_valid=all(checks.values()),
-            confidence=confidence,
-            issues=[k for k, v in checks.items() if not v]
+        """Initialize extraction agent."""
+        self.llm = ChatOpenAI(
+            model="gpt-4o",
+            temperature=0.1,
+            api_key=settings.LLM_API_KEY
+        )
+        self.vision_llm = ChatOpenAI(
+            model="gpt-4-vision-preview",
+            temperature=0.1,
+            api_key=settings.LLM_API_KEY,
+            max_tokens=4096
         )
 ```
 
-### 3. Matching Agent
-
-Performs 3-way matching between invoices, POs, and receipts:
-
-```python
-# From app/agents/matching_agent.py
-class MatchingAgent:
-    """Handles 3-way matching logic"""
-    
-    async def match(self, state: AgentState) -> MatchResult:
-        invoice = state["extracted_data"]
-        
-        # Find related documents
-        po = await self.find_purchase_order(invoice.po_number)
-        receipt = await self.find_goods_receipt(invoice.vendor, invoice.items)
-        
-        # Perform matching
-        matches = {
-            "po_match": self.match_with_po(invoice, po),
-            "receipt_match": self.match_with_receipt(invoice, receipt),
-            "quantity_match": self.verify_quantities(invoice, po, receipt),
-            "price_match": self.verify_prices(invoice, po)
-        }
-        
-        return MatchResult(
-            matched=all(matches.values()),
-            confidence=self.calculate_match_confidence(matches),
-            discrepancies=self.identify_discrepancies(matches)
-        )
-```
-
-### 4. Decision Agent
-
-Makes routing decisions based on validation and matching results:
-
-```python
-# From app/agents/decision_agent.py
-class DecisionAgent:
-    """Routes documents based on confidence and business rules"""
-    
-    def route(self, state: AgentState) -> str:
-        confidence = state["confidence_score"]
-        amount = state["extracted_data"].total_amount
-        
-        # Routing logic
-        if confidence >= 0.95 and amount < 10000:
-            return "auto_approve"
-        elif confidence >= 0.80:
-            return "human_review"
-        elif confidence >= 0.60:
-            return "enhanced_validation"
-        else:
-            return "manual_entry"
-```
-
-## LangGraph Workflow
-
-The complete workflow is defined as a stateful graph:
-
-```python
-# From app/agents/graph.py
-from langgraph.graph import StateGraph, END
-
-# Define the workflow
-workflow = StateGraph(AgentState)
-
-# Add nodes (agents)
-workflow.add_node("extract", extraction_agent)
-workflow.add_node("validate", validation_agent)
-workflow.add_node("match", matching_agent)
-workflow.add_node("decide", decision_agent)
-workflow.add_node("auto_approve", auto_approval_agent)
-workflow.add_node("human_review", human_review_agent)
-
-# Define edges
-workflow.set_entry_point("extract")
-workflow.add_edge("extract", "validate")
-workflow.add_edge("validate", "match")
-workflow.add_edge("match", "decide")
-
-# Conditional routing from decision agent
-workflow.add_conditional_edges(
-    "decide",
-    lambda x: x["next_action"],
-    {
-        "auto_approve": "auto_approve",
-        "human_review": "human_review",
-        "enhanced_validation": "validate",
-        "manual_entry": END
-    }
-)
-
-# Compile the graph
-app = workflow.compile()
-```
-
-## MCP Tool Integration
-
-The agents use Model Context Protocol (MCP) for external tool access:
+#### Extraction Methods
 
 <Tabs>
-  <Tab title="Web Search">
+  <Tab title="GPT-4 Vision">
     ```python
-    @tool
-    def search_supplier_info(query: str) -> dict:
-        """Search for supplier information online"""
-        return mcp_client.execute(
-            "web_search",
-            {"query": f"{query} company VAT chamber commerce"}
-        )
+    async def extract_with_vision(self, image_data: bytes) -> Dict:
+        """Extract using GPT-4 Vision for complex layouts"""
+        messages = [
+            SystemMessage(content=VISION_EXTRACTION_PROMPT),
+            HumanMessage(content=[
+                {"type": "text", "text": "Extract invoice data:"},
+                {"type": "image_url", "image_url": {
+                    "url": f"data:image/jpeg;base64,{base64_image}"
+                }}
+            ])
+        ]
+        return await self.vision_llm.ainvoke(messages)
     ```
   </Tab>
   
-  <Tab title="Database Operations">
+  <Tab title="DocTR OCR">
     ```python
-    @tool
-    def lookup_vendor_history(vendor_id: str) -> list:
-        """Get historical invoices from vendor"""
-        return mcp_client.execute(
-            "database_query",
-            {
-                "table": "invoices",
-                "filter": {"vendor_id": vendor_id},
-                "limit": 10
-            }
-        )
+    async def extract_with_ocr(self, pdf_path: str) -> Dict:
+        """Fallback to OCR for scanned documents"""
+        from doctr.io import DocumentFile
+        from doctr.models import ocr_predictor
+        
+        model = ocr_predictor(pretrained=True)
+        doc = DocumentFile.from_pdf(pdf_path)
+        result = model(doc)
+        
+        return self.parse_ocr_result(result)
     ```
   </Tab>
   
-  <Tab title="External APIs">
+  <Tab title="LlamaCloud">
     ```python
-    @tool
-    def validate_vat_number(vat: str, country: str) -> bool:
-        """Validate VAT via VIES API"""
-        return mcp_client.execute(
-            "vat_validation",
-            {"vat_number": vat, "country_code": country}
+    async def extract_with_llama(self, content: str) -> Dict:
+        """Use LlamaCloud for structured extraction"""
+        from llama_parse import LlamaParse
+        
+        parser = LlamaParse(
+            api_key=settings.LLAMA_CLOUD_API_KEY,
+            result_type="json"
         )
+        
+        return await parser.aparse(content)
     ```
   </Tab>
 </Tabs>
 
-## Natural Language Interface
+### 2. Validation Agent
 
-The system includes a conversational agent for queries:
-
-```python
-# Natural language query processing
-async def process_query(query: str) -> str:
-    # Parse intent
-    intent = await parse_query_intent(query)
-    
-    # Route to appropriate tools
-    if intent.type == "count":
-        result = await count_documents(intent.filters)
-    elif intent.type == "search":
-        result = await search_invoices(intent.criteria)
-    elif intent.type == "analyze":
-        result = await analyze_vendor_patterns(intent.vendor)
-    
-    # Format response
-    return format_natural_response(result)
-```
-
-### Example Queries
-
-<CodeGroup>
-```python "Count Query"
-# User: "How many invoices from ACME Corp this month?"
-result = await agent.query(
-    "How many invoices from ACME Corp this month?"
-)
-# Returns: "Found 23 invoices from ACME Corp in January 2024, 
-#          totaling €45,678.90"
-```
-
-```python "Analysis Query"
-# User: "Show me the payment pattern for Tech Supplies"
-result = await agent.query(
-    "Show me the payment pattern for Tech Supplies"
-)
-# Returns: "Tech Supplies typically invoices on the 15th of each month,
-#          with an average amount of €3,456. Payment terms are Net 30."
-```
-
-```python "Search Query"
-# User: "Find all pending invoices over 5000 euros"
-result = await agent.query(
-    "Find all pending invoices over 5000 euros"
-)
-# Returns: List of matching invoices with details
-```
-</CodeGroup>
-
-## Performance Optimization
-
-### Caching Strategy
+De **ValidationAgent** voert comprehensive checks uit op geëxtraheerde data:
 
 ```python
-from functools import lru_cache
-from redis import Redis
-
-redis_client = Redis()
-
-@lru_cache(maxsize=1000)
-def get_vendor_info(vendor_id: str) -> dict:
-    """Cache vendor information for repeated lookups"""
-    # Check Redis first
-    cached = redis_client.get(f"vendor:{vendor_id}")
-    if cached:
-        return json.loads(cached)
+# Uit app/agents/validation_agent.py
+class ValidationAgent:
+    """Validates extracted invoice data with business rules."""
     
-    # Fetch from database
-    vendor = db.get_vendor(vendor_id)
-    
-    # Cache for future use
-    redis_client.setex(
-        f"vendor:{vendor_id}",
-        3600,  # 1 hour TTL
-        json.dumps(vendor)
-    )
-    
-    return vendor
+    async def validate(self, invoice_data: Dict) -> ValidationResult:
+        """Run comprehensive validation checks"""
+        
+        results = await asyncio.gather(
+            self.validate_vat_number(invoice_data.get("vat_number")),
+            self.validate_iban(invoice_data.get("iban")),
+            self.validate_dates(invoice_data),
+            self.validate_amounts(invoice_data),
+            self.check_business_rules(invoice_data)
+        )
+        
+        return ValidationResult(
+            is_valid=all(r.is_valid for r in results),
+            errors=[e for r in results for e in r.errors],
+            warnings=[w for r in results for w in r.warnings],
+            confidence=self.calculate_confidence(results)
+        )
 ```
+
+#### Validation Types
+
+<CardGroup cols={2}>
+  <Card title="Data Validation" icon="check-circle">
+    - **VAT Number**: Checksum en format verificatie
+    - **IBAN**: Modulo 97 check
+    - **Dates**: Logische consistentie
+    - **Amounts**: Wiskundige correctheid
+    - **Currency**: ISO 4217 codes
+  </Card>
+  
+  <Card title="Business Rules" icon="scale-balanced">
+    - **Vendor Existence**: Database lookup
+    - **PO Authorization**: Limiet checks
+    - **Budget Availability**: Real-time check
+    - **Duplicate Detection**: Hash-based
+    - **Fraud Indicators**: Pattern analysis
+  </Card>
+</CardGroup>
+
+### 3. Matching Agent
+
+De **MatchingAgent** implementeert intelligente 3-way matching:
+
+```python
+# Conceptuele implementatie (uitgebreide versie in development)
+class MatchingAgent:
+    """Performs intelligent 3-way matching."""
+    
+    async def match(
+        self,
+        invoice_data: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        3-way matching met:
+        1. Invoice ↔ Purchase Order
+        2. Purchase Order ↔ Goods Receipt
+        3. Invoice ↔ Goods Receipt
+        """
+        
+        # Zoek matching PO
+        po_matches = await self.find_purchase_orders(
+            vendor_id=invoice_data["vendor_id"],
+            po_number=invoice_data.get("po_number"),
+            amount_range=(invoice_data["total"] * 0.95, 
+                         invoice_data["total"] * 1.05)
+        )
+        
+        # Score matches
+        match_results = []
+        for po in po_matches:
+            score = await self.calculate_match_score(invoice_data, po)
+            if score > 0.8:  # 80% threshold
+                match_results.append({
+                    "po": po,
+                    "score": score,
+                    "line_matches": await self.match_line_items(
+                        invoice_data["items"], 
+                        po["items"]
+                    )
+                })
+        
+        return {
+            "matched": len(match_results) > 0,
+            "best_match": max(match_results, key=lambda x: x["score"]),
+            "confidence": self.calculate_confidence(match_results)
+        }
+```
+
+### 4. Decision Agent
+
+De **DecisionAgent** maakt autonome routing beslissingen:
+
+```python
+# Uit app/agents/decision_agent.py
+class DecisionAgent:
+    """Makes autonomous decisions on invoice processing."""
+    
+    async def decide(
+        self,
+        validation_result: ValidationResult,
+        matching_result: MatchingResult,
+        context: Dict[str, Any]
+    ) -> Decision:
+        """
+        Beslissingslogica:
+        - Auto-approve als alles matcht binnen toleranties
+        - Route naar approver bij discrepanties
+        - Escaleer bij fraud indicators
+        - Blokkeer bij kritieke fouten
+        """
+        
+        if validation_result.has_critical_errors():
+            return Decision(
+                action="BLOCK",
+                reason="Critical validation errors",
+                next_step="manual_review"
+            )
+        
+        if matching_result.confidence > 0.95:
+            return Decision(
+                action="AUTO_APPROVE",
+                reason="High confidence match",
+                next_step="accounting_export"
+            )
+        
+        # Complex routing logic based on amount, vendor, etc.
+        return await self.determine_approval_route(
+            validation_result, 
+            matching_result,
+            context
+        )
+```
+
+## Tool Integration
+
+### MCP Tools
+
+De agents gebruiken Model Context Protocol (MCP) voor externe integraties:
+
+```python
+# Uit app/agents/tools.py
+def get_all_tools():
+    """Get all available tools for the agent."""
+    return [
+        # Supplier tools
+        search_suppliers,
+        get_supplier_details,
+        validate_supplier_vat,
+        
+        # Document tools
+        extract_pdf_text,
+        ocr_document,
+        
+        # Web tools
+        search_web,
+        verify_company_info,
+        
+        # Database tools
+        query_purchase_orders,
+        check_duplicate_invoice,
+        get_approval_hierarchy
+    ]
+```
+
+### Tool Voorbeelden
+
+<Tabs>
+  <Tab title="Supplier Search">
+    ```python
+    @tool
+    async def search_suppliers(query: str) -> List[Dict]:
+        """Search for suppliers in the database."""
+        async with get_db() as db:
+            results = await db.execute(
+                """
+                SELECT * FROM suppliers 
+                WHERE name ILIKE %s 
+                OR vat_number = %s
+                LIMIT 10
+                """,
+                (f"%{query}%", query)
+            )
+            return results.fetchall()
+    ```
+  </Tab>
+  
+  <Tab title="VAT Validation">
+    ```python
+    @tool
+    async def validate_supplier_vat(vat_number: str) -> Dict:
+        """Validate VAT number via external service."""
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://ec.europa.eu/vies/check",
+                params={"vat": vat_number}
+            )
+            return response.json()
+    ```
+  </Tab>
+</Tabs>
+
+## State Management
+
+### Agent State
+
+```python
+# Uit app/agents/state.py
+class AgentState(TypedDict):
+    """State shared between all agents."""
+    
+    messages: List[BaseMessage]
+    current_query: str
+    tool_results: Optional[Dict[str, Any]]
+    graph_context: Optional[Dict[str, Any]]
+    vector_context: Optional[Dict[str, Any]]
+    final_response: Optional[str]
+    metadata: Dict[str, Any]
+    
+    # Invoice specific state
+    invoice_data: Optional[ExtractedInvoice]
+    validation_result: Optional[ValidationResult]
+    matching_result: Optional[MatchingResult]
+    decision: Optional[Decision]
+```
+
+## Performance Optimizations
 
 ### Parallel Processing
 
 ```python
-async def process_batch(documents: List[Document]) -> List[Result]:
-    """Process multiple documents in parallel"""
+# Agents kunnen parallel draaien waar mogelijk
+async def process_invoice_parallel(invoice: Document) -> ProcessingResult:
+    """Process invoice with parallel agent execution."""
     
-    # Create tasks for parallel execution
-    tasks = [
-        process_document(doc) 
-        for doc in documents
-    ]
-    
-    # Execute in parallel with concurrency limit
-    results = await asyncio.gather(
-        *tasks,
-        return_exceptions=True
+    # Extract and validate in parallel
+    extraction_task = asyncio.create_task(
+        extraction_agent.extract(invoice)
     )
     
-    return results
+    # Start pre-validation checks
+    pre_validation_task = asyncio.create_task(
+        validation_agent.pre_validate(invoice.metadata)
+    )
+    
+    # Wait for extraction
+    extracted_data = await extraction_task
+    
+    # Full validation with extracted data
+    validation_task = asyncio.create_task(
+        validation_agent.validate(extracted_data)
+    )
+    
+    # Start matching while validation runs
+    matching_task = asyncio.create_task(
+        matching_agent.match(extracted_data)
+    )
+    
+    # Gather results
+    validation_result = await validation_task
+    matching_result = await matching_task
+    
+    # Decision requires both results
+    decision = await decision_agent.decide(
+        validation_result, 
+        matching_result
+    )
+    
+    return ProcessingResult(
+        extraction=extracted_data,
+        validation=validation_result,
+        matching=matching_result,
+        decision=decision
+    )
 ```
 
 ## Monitoring & Observability
 
 ### Langfuse Integration
 
-All agent interactions are tracked in Langfuse:
+Alle agent interactions worden automatisch getraceerd:
 
 ```python
-from langfuse import Langfuse
+from langfuse.decorators import observe
 
-langfuse = Langfuse()
-
-@langfuse.trace
-async def process_invoice(document: Document):
-    """Process invoice with full observability"""
+@observe()
+async def process_with_agents(document: Document) -> Result:
+    """All LLM calls within this function are automatically traced."""
     
-    # Each step is automatically traced
-    extraction = await extraction_agent.extract(document)
-    validation = await validation_agent.validate(extraction)
-    matching = await matching_agent.match(extraction)
+    # Langfuse captures:
+    # - Input/output of each agent
+    # - Token usage and costs
+    # - Latency per step
+    # - Error traces
+    # - Custom metadata
     
-    # Log metrics
-    langfuse.score(
-        name="extraction_confidence",
-        value=extraction.confidence
-    )
+    result = await agent_graph.ainvoke({
+        "document": document,
+        "metadata": {
+            "source": "email",
+            "timestamp": datetime.now()
+        }
+    })
     
     return result
 ```
 
-### Key Metrics
-
-<CardGroup cols={3}>
-  <Card title="Extraction Accuracy" icon="bullseye">
-    Track field-level accuracy rates
-  </Card>
-  
-  <Card title="Processing Time" icon="clock">
-    Monitor agent execution times
-  </Card>
-  
-  <Card title="Confidence Distribution" icon="chart-bar">
-    Analyze confidence score patterns
-  </Card>
-</CardGroup>
-
 ## Best Practices
 
-<Steps>
-  <Step title="Design for Failure">
-    Always include fallback mechanisms and retry logic
-  </Step>
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="shield-exclamation">
+    - Gebruik try-except blocks in elke agent
+    - Implementeer retry logic met backoff
+    - Log alle errors naar structured logs
+    - Fallback naar manual review bij failures
+  </Card>
   
-  <Step title="Monitor Everything">
-    Use Langfuse to track all LLM calls and agent decisions
-  </Step>
+  <Card title="Performance" icon="gauge-high">
+    - Cache frequent supplier lookups
+    - Gebruik async/await voor I/O operations
+    - Batch database queries waar mogelijk
+    - Monitor token usage per agent
+  </Card>
   
-  <Step title="Cache Intelligently">
-    Cache vendor data and validation results to reduce API calls
-  </Step>
+  <Card title="Security" icon="lock">
+    - Sanitize alle user inputs
+    - Gebruik parameterized queries
+    - Encrypt sensitive data in transit
+    - Audit log alle agent decisions
+  </Card>
   
-  <Step title="Test Thoroughly">
-    Use the evaluation framework to test agent performance
-  </Step>
-</Steps>
-
-## Next Steps
-
-- [API Reference](/3wm-project/api-reference/agent) - Agent API endpoints
-- [Architecture](/3wm-project/architecture/components) - Technical details
-- [Deployment](/3wm-project/deployment/overview) - Production setup
-
----
-
-*Built with ❤️ by [Sky Dust](https://skydust.io)* 
+  <Card title="Maintainability" icon="wrench">
+    - Houd agents focused op één taak
+    - Gebruik type hints overal
+    - Write comprehensive tests
+    - Document edge cases
+  </Card>
+</CardGroup> 
